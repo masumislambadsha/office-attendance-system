@@ -1,7 +1,7 @@
 // Idempotent password seeding for email+password login.
 // Creates user docs + "credential" accounts using the exact better-auth scrypt
 // format (salt:key, N=16384, r=16, p=1, dkLen=64) so /sign-in/email works.
-// Usage: node scripts/seed-passwords.mjs   (requires MONGODB_URI)
+// Usage: node scripts/seed-passwords.mjs [email ...]   (requires MONGODB_URI)
 import { MongoClient } from "mongodb";
 import { randomBytes, scrypt } from "node:crypto";
 
@@ -50,12 +50,32 @@ async function hashPassword(password) {
 const client = new MongoClient(uri, { appName: "office-attendance-pw" });
 const db = client.db(dbName);
 
+// Optional CLI args limit the run to the named emails (e.g. only the admin).
+const only = new Set(
+  process.argv
+    .slice(2)
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+);
+const targets = only.size
+  ? ACCOUNTS.filter((a) => only.has(a.email.toLowerCase()))
+  : ACCOUNTS;
+if (only.size && targets.length !== only.size) {
+  const known = new Set(ACCOUNTS.map((a) => a.email.toLowerCase()));
+  const unknown = [...only].filter((e) => !known.has(e));
+  if (unknown.length) {
+    console.error(`Unknown email(s): ${unknown.join(", ")}`);
+    console.error(`Known: ${[...known].join(", ")}`);
+    process.exit(1);
+  }
+}
+
 async function main() {
   const users = db.collection("user");
   const accounts = db.collection("account");
   const now = new Date();
 
-  for (const a of ACCOUNTS) {
+  for (const a of targets) {
     let user = await users.findOne({ email: a.email.toLowerCase() });
     if (!user) {
       const id = generateId();
