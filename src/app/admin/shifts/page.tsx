@@ -5,6 +5,7 @@ import { ErrorBanner } from "@/components/ui";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { NumberFieldField } from "@/components/ui/number-field";
 import { TimeFieldField } from "@/components/ui/time-field";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,33 +33,97 @@ export default async function AdminShiftsPage({ searchParams }: Props) {
           <CardTitle>{editing ? `Edit shift · ${editing.name}` : "Add / edit shift"}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={saveShift} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <form action={saveShift} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {editing && <input type="hidden" name="id" value={editing._id} />}
-            <Input name="name" required defaultValue={editing?.name} placeholder="Name (e.g. Day Shift)" aria-label="Shift name" />
-            <TimeFieldField name="start_time" defaultValue={editing?.start_time ?? "09:00"} ariaLabel="Start time" isRequired />
-            <TimeFieldField name="end_time" defaultValue={editing?.end_time ?? "18:00"} ariaLabel="End time" isRequired />
-            <NumberFieldField
-              name="grace_min"
-              minValue={0}
-              defaultValue={editing?.grace_min ?? 10}
-              placeholder="Grace (min)"
-              ariaLabel="Grace minutes"
-            />
-            <NumberFieldField
-              name="half_day_after_min"
-              minValue={0}
-              defaultValue={editing?.half_day_after_min ?? 60}
-              placeholder="Half-day after"
-              ariaLabel="Half-day after minutes"
-            />
-            <NumberFieldField
-              name="early_exit_min"
-              minValue={0}
-              defaultValue={editing?.early_exit_min ?? 60}
-              placeholder="Early-exit (min)"
-              ariaLabel="Early exit minutes"
-            />
-            <div className="sm:col-span-2 lg:col-span-6">
+
+            <div className="grid gap-1.5">
+              <Label id="shift-name-label" className="text-xs text-muted-foreground">
+                Shift name
+              </Label>
+              <Input
+                name="name"
+                required
+                defaultValue={editing?.name}
+                placeholder="e.g. Day Shift"
+                aria-labelledby="shift-name-label"
+              />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label id="shift-start-label" className="text-xs text-muted-foreground">
+                Start time
+              </Label>
+              <TimeFieldField
+                name="start_time"
+                defaultValue={editing?.start_time ?? "09:00"}
+                labelledBy="shift-start-label"
+                isRequired
+              />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label id="shift-end-label" className="text-xs text-muted-foreground">
+                End time
+              </Label>
+              <TimeFieldField
+                name="end_time"
+                defaultValue={editing?.end_time ?? "18:00"}
+                labelledBy="shift-end-label"
+                isRequired
+              />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label id="shift-grace-label" className="text-xs text-muted-foreground">
+                Grace period (min)
+              </Label>
+              <NumberFieldField
+                name="grace_min"
+                minValue={0}
+                defaultValue={editing?.grace_min ?? 10}
+                labelledBy="shift-grace-label"
+                className="p-0"
+
+              />
+              <p className="text-xs text-muted-foreground">
+                Check in within this many minutes after the start time counts as present. Later than this is late.
+              </p>
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label id="shift-halfday-label" className="text-xs text-muted-foreground">
+                Half-day after (min)
+              </Label>
+              <NumberFieldField
+                name="half_day_after_min"
+                minValue={0}
+                defaultValue={editing?.half_day_after_min ?? 60}
+                labelledBy="shift-halfday-label"
+                className="w-36"
+              />
+              <p className="text-xs text-muted-foreground">
+                Check in later than this many minutes after the start time counts as half day, not late.
+              </p>
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label id="shift-earlyexit-label" className="text-xs text-muted-foreground">
+                Early-exit threshold (min)
+              </Label>
+              <NumberFieldField
+                name="early_exit_min"
+                minValue={0}
+                defaultValue={editing?.early_exit_min ?? 60}
+                labelledBy="shift-earlyexit-label"
+                className="w-36"
+              />
+              <p className="text-xs text-muted-foreground">
+                Checking out more than this many minutes before the end time flags an early exit. The day status itself is
+                unchanged.
+              </p>
+            </div>
+
+            <div className="sm:col-span-2 lg:col-span-3">
               <Button type="submit">{editing ? "Save changes" : "Save shift"}</Button>
             </div>
           </form>

@@ -73,7 +73,7 @@ export function NumberFieldField({
         className={cn("w-full", className)}
       >
         <HeroNumberField.Group className="w-full">
-          <HeroNumberField.Input className="w-full" placeholder={placeholder} />
+          <HeroNumberField.Input className="w-full p-0 pl-2" placeholder={placeholder} />
           <HeroNumberField.IncrementButton>&#43;</HeroNumberField.IncrementButton>
           <HeroNumberField.DecrementButton>&#8722;</HeroNumberField.DecrementButton>
         </HeroNumberField.Group>

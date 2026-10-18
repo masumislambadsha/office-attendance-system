@@ -26,8 +26,22 @@ const STATUS_STYLES: Record<DayStatus, string> = {
   holiday: "bg-violet-50 text-violet-700",
 };
 
+const STATUS_MEANING: Record<DayStatus, string> = {
+  present: "Checked in within the shift's grace period.",
+  late: "Checked in after the grace period but within the half-day threshold.",
+  half_day: "Checked in later than the shift's half-day threshold.",
+  absent: "No check-in recorded on a working day.",
+  leave: "Approved leave.",
+  holiday: "Holiday.",
+  weekend: "Weekly off.",
+};
+
 export function StatusBadge({ status }: { status: DayStatus }) {
-  return <Badge className={cn(STATUS_STYLES[status])}>{status.replace("_", " ")}</Badge>;
+  return (
+    <span title={STATUS_MEANING[status]} className="inline-flex">
+      <Badge className={cn(STATUS_STYLES[status])}>{status.replace("_", " ")}</Badge>
+    </span>
+  );
 }
 
 export function Row({ label, value }: { label: string; value: React.ReactNode }) {
