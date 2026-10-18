@@ -42,7 +42,6 @@ export function zoneMidnightUtc(dateKey: string, timeZone = TZ): Date {
   const y = parts[0];
   const m = parts[1] - 1;
   const d = parts[2];
-  const now = new Date();
   const guess = new Date(Date.UTC(y, m, d, 12, 0, 0));
   const offsetMin = offsetAt(guess, timeZone);
   return new Date(Date.UTC(y, m, d, 0, 0, 0) - offsetMin * MIN);
@@ -102,13 +101,29 @@ export function weekdayOf(dateKey: string): number {
 
 /**
  * Working-date key a scan instant belongs to: the Dhaka date whose shift the
- * scan counts against. For overnight shifts, scans before shift start (the
- * following morning, e.g. a 06:00 checkout) belong to the previous day.
+ * scan counts against. For overnight shifts, scans between shift end (next
+ * morning) and the next shift start are ambiguous; they are split at the
+ * midpoint (see `overnightCutoff`) — morning checkouts land on the previous
+ * day's shift, evening arrivals on the current day's.
  */
-export function workingDateForScan(startMin: number, overnight: boolean, ts: Date): string {
+export function workingDateForScan(
+  startMin: number,
+  endMin: number,
+  overnight: boolean,
+  ts: Date,
+): string {
   const date = dateKeyInZone(ts, TZ);
-  if (overnight && minutesOfDay(ts, TZ) < startMin) return addDays(date, -1);
+  if (overnight && minutesOfDay(ts, TZ) < overnightCutoff(startMin, endMin)) return addDays(date, -1);
   return date;
+}
+
+/**
+ * Midpoint (minutes since Dhaka midnight) between an overnight shift's end and
+ * its next start: scans before it belong to the previous day's shift.
+ * E.g. 22:00->06:00 => (360 + 1320) / 2 = 840 (14:00).
+ */
+export function overnightCutoff(startMin: number, endMin: number): number {
+  return endMin + (startMin - endMin) / 2;
 }
 
 /** All yyyy-MM-dd keys in [from, to] inclusive. */
@@ -122,6 +137,11 @@ export function rangeKeys(from: string, to: string): string[] {
 /** yyyy-MM for a date key. */
 export function monthOf(dateKey: string): string {
   return dateKey.slice(0, 7);
+}
+
+/** Current yyyy-MM month key in Asia/Dhaka. */
+export function currentMonthKey(now = new Date()): string {
+  return monthOf(dateKeyInZone(now, TZ));
 }
 
 /** True if key1 and key2 are in the same calendar month. */

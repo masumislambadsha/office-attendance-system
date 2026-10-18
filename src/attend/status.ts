@@ -4,7 +4,8 @@
  * midnight; weekday uses JS convention (0=Sun..6=Sat; BD: 0=Sun, 5=Fri).
  *
  * Resolution priority (strict): manual override > holiday > weekly off >
- * approved leave > missing check-in (absent) > timing (present/late/half-day).
+ * approved leave > half-day leave without a scan > missing check-in (absent) >
+ * timing (present/late/half-day).
  */
 
 export type DayStatus =
@@ -31,6 +32,8 @@ export interface DayInput {
   isHoliday: boolean;
   isWeeklyOff: boolean;
   isApprovedLeave: boolean;
+  /** Approved half-day leave; a scan that day still counts for timing. */
+  isHalfDayLeave: boolean;
   checkInMin: number | null; // first scan today
   checkOutMin: number | null; // last scan today (if any)
   shift: ShiftTiming | null;
@@ -58,11 +61,18 @@ export function wrappedEndMin(startMin: number, endMin: number): number {
 
 /**
  * A scan's minute aligned to the shift-start day's midnight. For overnight
- * shifts, scans that happened before shift start (i.e. after midnight on the
- * following day, like a 06:00 checkout) are advanced onto the next day.
+ * shifts, scans before the midpoint between shift end and the next shift start
+ * (e.g. a 06:00 checkout) are advanced onto the following day, while evening
+ * arrivals from the midpoint onward stay on their own day.
  */
-export function anchorShiftMinute(startMin: number, overnight: boolean, timeOfDay: number): number {
-  return overnight && timeOfDay < startMin ? timeOfDay + 24 * 60 : timeOfDay;
+export function anchorShiftMinute(
+  startMin: number,
+  endMin: number,
+  overnight: boolean,
+  timeOfDay: number,
+): number {
+  const cutoff = endMin + (startMin - endMin) / 2;
+  return overnight && timeOfDay < cutoff ? timeOfDay + 24 * 60 : timeOfDay;
 }
 
 export function resolveDayStatus(input: DayInput): DayOutput {
@@ -72,6 +82,9 @@ export function resolveDayStatus(input: DayInput): DayOutput {
   if (input.isHoliday) return { status: "holiday", lateMin: 0, flag: null };
   if (input.isWeeklyOff) return { status: "weekend", lateMin: 0, flag: null };
   if (input.isApprovedLeave) return { status: "leave", lateMin: 0, flag: null };
+  if (input.isHalfDayLeave && input.checkInMin === null) {
+    return { status: "leave", lateMin: 0, flag: null };
+  }
 
   if (input.checkInMin === null) {
     return { status: "absent", lateMin: 0, flag: null };

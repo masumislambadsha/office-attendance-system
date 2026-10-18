@@ -9,13 +9,18 @@ import { writeAudit } from "@/actions/audit";
 import { monthOf } from "@/lib/time";
 import { DAY_STATUSES, DayStatus } from "@/attend/types";
 import { closeMonth, reopenMonth } from "@/attend/payroll";
+import { computeDay, materializeDay } from "@/attend/service";
 
 function fail(path: string, msg: string): never {
   redirect(`${path}?error=${encodeURIComponent(msg)}`);
 }
 
-function parseWeeklyOff(raw: string): number[] {
-  return [...new Set(raw.split(",").map((s) => Number(s.trim())).filter((n) => n >= 0 && n <= 6))];
+function isDuplicateKey(e: unknown): boolean {
+  return typeof e === "object" && e !== null && "code" in e && (e as { code?: number }).code === 11000;
+}
+
+function parseWeeklyOff(values: FormDataEntryValue[]): number[] {
+  return [...new Set(values.map((v) => Number(String(v))).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))];
 }
 
 export async function saveEmployee(formData: FormData): Promise<void> {
@@ -25,7 +30,7 @@ export async function saveEmployee(formData: FormData): Promise<void> {
     name: String(formData.get("name") ?? "").trim(),
     email: String(formData.get("email") ?? "").trim().toLowerCase(),
     shift_id: String(formData.get("shift_id") ?? "").trim(),
-    weekly_off: parseWeeklyOff(String(formData.get("weekly_off") ?? "")),
+    weekly_off: parseWeeklyOff(formData.getAll("weekly_off")),
     joined_at: String(formData.get("joined_at") ?? ""),
     monthly_gross: Number(formData.get("monthly_gross") ?? 0),
     active: formData.get("active") === "on",
@@ -33,32 +38,50 @@ export async function saveEmployee(formData: FormData): Promise<void> {
   if (!payload.name || !payload.email || !payload.shift_id || !/^\d{4}-\d{2}-\d{2}$/.test(payload.joined_at)) {
     return fail("/admin/employees", "name, email, shift and join date are required");
   }
+  if (id && !ObjectId.isValid(id)) return fail("/admin/employees", "bad employee id");
+  const emailTaken = await collections().employees.findOne({
+    email: payload.email,
+    ...(id ? { _id: { $ne: new ObjectId(id) } } : {}),
+  });
+  if (emailTaken) return fail("/admin/employees", "another employee already uses that email");
   const now = new Date();
 
   if (id) {
     const existing = await collections().employees.findOne({ _id: new ObjectId(id) });
     if (!existing) return fail("/admin/employees", "employee not found");
     const prev = { name: existing.name, email: existing.email, shift_id: existing.shift_id, active: existing.active };
-    await collections().employees.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { ...payload, updated_at: now } },
-    );
+    try {
+      await collections().employees.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { ...payload, updated_at: now } },
+      );
+    } catch (e) {
+      if (isDuplicateKey(e)) return fail("/admin/employees", "another employee already uses that email");
+      throw e;
+    }
     await writeAudit({ actor: actor.email, action: "employee.update", entity: `employees:${id}`, old: prev, new: payload });
     revalidatePath("/admin");
     revalidatePath("/admin/employees");
     return;
   }
 
-  const inserted = await collections().employees.insertOne({
-    _id: new ObjectId(),
-    ...payload,
-    created_at: now,
-    updated_at: now,
-  });
+  let insertedId: ObjectId;
+  try {
+    const inserted = await collections().employees.insertOne({
+      _id: new ObjectId(),
+      ...payload,
+      created_at: now,
+      updated_at: now,
+    });
+    insertedId = inserted.insertedId;
+  } catch (e) {
+    if (isDuplicateKey(e)) return fail("/admin/employees", "another employee already uses that email");
+    throw e;
+  }
   await writeAudit({
     actor: actor.email,
     action: "employee.create",
-    entity: `employees:${inserted.insertedId.toString()}`,
+    entity: `employees:${insertedId.toString()}`,
     old: null,
     new: payload,
   });
@@ -97,22 +120,36 @@ export async function saveShift(formData: FormData): Promise<void> {
   if (!payload.name || !/^\d{2}:\d{2}$/.test(payload.start_time) || !/^\d{2}:\d{2}$/.test(payload.end_time)) {
     return fail("/admin/shifts", "valid name, start and end time required (HH:MM)");
   }
-  const key = id || payload.name.toLowerCase().replace(/\s+/g, "_");
-  const existing = await collections().shifts.findOne({ _id: key });
-  if (existing) {
-    await collections().shifts.updateOne({ _id: key }, { $set: { ...payload, created_at: existing.created_at } });
-  } else {
-    await collections().shifts.insertOne({ _id: key, ...payload, created_at: new Date() });
+
+  if (id) {
+    // Edit in place: employees reference the shift by _id, so renaming the
+    // display name is safe; there is no way to change the key here.
+    const existing = await collections().shifts.findOne({ _id: id });
+    if (!existing) return fail("/admin/shifts", "shift not found");
+    await collections().shifts.updateOne({ _id: id }, { $set: payload });
+    await writeAudit({
+      actor: actor.email,
+      action: "shift.update",
+      entity: `shifts:${id}`,
+      old: existing,
+      new: { _id: id, ...payload },
+    });
+    revalidatePath("/admin/shifts");
+    return;
   }
+
+  const key = payload.name.toLowerCase().replace(/\s+/g, "_");
+  if (await collections().shifts.findOne({ _id: key })) {
+    return fail("/admin/shifts", "a shift with that name already exists — edit it instead");
+  }
+  await collections().shifts.insertOne({ _id: key, ...payload, created_at: new Date() });
   await writeAudit({
     actor: actor.email,
-    action: existing ? "shift.update" : "shift.create",
+    action: "shift.create",
     entity: `shifts:${key}`,
-    old: existing ?? null,
+    old: null,
     new: { _id: key, ...payload },
   });
-  // Renaming a shift silently would strand employees; block the rename (id empty when creating).
-  if (existing && id) return fail("/admin/shifts", "renaming a shift would strand employees — not allowed");
   revalidatePath("/admin/shifts");
 }
 
@@ -182,11 +219,21 @@ export async function manualCorrect(formData: FormData): Promise<void> {
     date,
   });
 
+  // A manual "leave" keeps the paid/unpaid classification of the covering request.
+  let leaveTypeId: string | null = null;
+  if (status === "leave") {
+    const covering = await collections().leaveRequests
+      .find({ employee_id: employee._id, status: "approved", from: { $lte: date }, to: { $gte: date } })
+      .toArray();
+    const leave = covering.find((r) => !r.half_day) ?? covering[0] ?? null;
+    leaveTypeId = leave?.type_id ?? null;
+  }
+
   const set = {
     status,
     late_min: 0,
     flag: null,
-    leave_type_id: null,
+    leave_type_id: leaveTypeId,
     source: "manual",
     updated_at: new Date(),
   } as const;
@@ -203,6 +250,42 @@ export async function manualCorrect(formData: FormData): Promise<void> {
     old: existing ? { status: existing.status, source: existing.source } : null,
     new: { status, source: "manual" },
     reason,
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/sheet");
+}
+
+/** Drops a manual override and restores the computed auto row for that day. */
+export async function clearManualOverride(formData: FormData): Promise<void> {
+  const actor = await requireAdmin();
+  const employeeId = String(formData.get("employee_id") ?? "");
+  const date = String(formData.get("date") ?? "");
+  if (!ObjectId.isValid(employeeId) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return fail("/admin/sheet", "bad input");
+
+  const month = monthOf(date);
+  const { isMonthClosed } = await import("@/attend/payroll");
+  if (await isMonthClosed(month)) {
+    return fail("/admin/sheet", `month ${month} is closed — reopen it before clearing`);
+  }
+
+  const employee = await collections().employees.findOne({ _id: new ObjectId(employeeId) });
+  if (!employee) return fail("/admin/sheet", "employee not found");
+
+  const existing = await collections().dailyStatus.findOne({ employee_id: employee._id, date });
+  if (!existing || existing.source !== "manual") return fail("/admin/sheet", "no manual override on that day");
+
+  await collections().dailyStatus.deleteOne({ _id: existing._id, source: "manual" });
+  const computed = await computeDay(employee, date);
+  await materializeDay(computed);
+
+  await writeAudit({
+    actor: actor.email,
+    action: "daily_status.clear_override",
+    entity: `daily_status:${employeeId}:${date}`,
+    old: { status: existing.status, source: "manual" },
+    new: { status: computed.output.status, source: "auto" },
+    reason: "manual override cleared",
   });
 
   revalidatePath("/admin");

@@ -1,9 +1,9 @@
 import { collections } from "@/lib/mongo";
 import { daysInMonth, rangeKeys, weekdayOf } from "@/lib/time";
-import { computeDay } from "@/attend/service";
+import { computeDays } from "@/attend/service";
 import { applyEarnedAccrual } from "@/attend/leave";
 import { writeAudit } from "@/actions/audit";
-import type { DayStatus } from "@/attend/types";
+import type { DayStatus, PayrollAdjustment } from "@/attend/types";
 
 export interface SheetRow {
   employee_id: string;
@@ -49,7 +49,9 @@ export function rowsToJsonv1(rows: SheetRow[]): string {
 }
 
 function escapeCsv(v: string): string {
-  return `"${v.replace(/"/g, '""')}"`;
+  // Neutralise spreadsheet formula injection (a name like "=cmd()" must not execute).
+  const safe = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+  return `"${safe.replace(/"/g, '""')}"`;
 }
 
 export async function isMonthClosed(month: string): Promise<boolean> {
@@ -69,7 +71,7 @@ async function leavePaidMap(): Promise<{ paid: Set<string>; unpaid: Set<string> 
   };
 }
 
-function accumulate(counts: SheetRow, status: DayStatus, latePaid: boolean): void {
+function accumulate(counts: SheetRow, status: DayStatus, latePaid: boolean, halfDayLeave: boolean): void {
   switch (status) {
     case "present":
       counts.present++;
@@ -84,12 +86,34 @@ function accumulate(counts: SheetRow, status: DayStatus, latePaid: boolean): voi
       counts.absents++;
       break;
     case "leave":
-      if (latePaid) counts.leave_paid++;
+      if (halfDayLeave) {
+        if (latePaid) counts.leave_paid += 0.5;
+        else counts.leave_unpaid += 0.5;
+      } else if (latePaid) counts.leave_paid++;
       else counts.leave_unpaid++;
       break;
     default:
       break; // weekend / holiday are not labour days
   }
+}
+
+/** Shape stored in payroll_adjustments (keyed by the update filter's employee_id+month). */
+function adjustmentFields(counts: SheetRow): Omit<PayrollAdjustment, "_id" | "employee_id"> {
+  return {
+    employee_name: counts.name,
+    month: counts.month,
+    working_days: counts.working_days,
+    present: counts.present,
+    late: counts.late,
+    half_days: counts.half_days,
+    absents: counts.absents,
+    leave_paid: counts.leave_paid,
+    leave_unpaid: counts.leave_unpaid,
+    deduction_days: counts.deduction_days,
+    deduction_amount: counts.deduction_amount,
+    gross: counts.gross,
+    rate_per_day: counts.rate_per_day,
+  };
 }
 
 /**
@@ -141,12 +165,13 @@ export async function closeMonth(month: string, actorEmail: string): Promise<{ o
       deduction_amount: 0,
     };
 
-    for (const date of dateList) {
-      const isOff = emp.weekly_off.includes(weekdayOf(date)) || holidays.has(date);
+    const days = await computeDays(emp, dateList);
+    for (const day of days) {
+      if (emp.joined_at && day.date < emp.joined_at) continue;
+      const isOff = emp.weekly_off.includes(weekdayOf(day.date)) || holidays.has(day.date);
       if (!isOff) counts.working_days++;
-      const day = await computeDay(emp, date);
       const leavePaid = day.leaveTypeId ? paidTypes.paid.has(day.leaveTypeId) : false;
-      accumulate(counts, day.output.status, leavePaid);
+      accumulate(counts, day.output.status, leavePaid, day.leaveHalfDay);
     }
 
     const lateAbsents = Math.floor(counts.late / latesPerAbsent);
@@ -154,10 +179,9 @@ export async function closeMonth(month: string, actorEmail: string): Promise<{ o
       Number((counts.absents + counts.half_days * halfMul + counts.leave_unpaid * unpaidMul + lateAbsents).toFixed(2));
     counts.deduction_amount = Number((counts.deduction_days * counts.rate_per_day).toFixed(2));
 
-    const { employee_id: _, ...countsWithoutId } = counts;
     await collections().payrollAdjustments.updateOne(
       { employee_id: emp._id, month },
-      { $set: countsWithoutId },
+      { $set: adjustmentFields(counts) },
       { upsert: true },
     );
     saved++;
