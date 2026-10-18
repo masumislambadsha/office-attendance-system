@@ -12,7 +12,11 @@ if (!uri) {
 }
 const dbName = process.env.MONGODB_DB || "attendance";
 
-const PASSWORD = process.env.DEMO_PASSWORD || "demo123456";
+const PASSWORD = process.env.DEMO_PASSWORD;
+if (!PASSWORD) {
+  console.error("DEMO_PASSWORD is required, e.g.: DEMO_PASSWORD=<secret> node scripts/seed-passwords.mjs");
+  process.exit(1);
+}
 
 const ACCOUNTS = [
   { email: "developer.1and9@gmail.com", name: "Owner", password: PASSWORD },
