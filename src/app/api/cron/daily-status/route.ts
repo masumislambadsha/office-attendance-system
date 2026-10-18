@@ -1,29 +1,35 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { collections } from "@/lib/mongo";
 import { CRON_SECRET } from "@/lib/constants";
-import { addDays, diffDays } from "@/lib/time";
-import { computeDay, lastMaterializedDate, materializeDay, nowDateKey } from "@/attend/service";
+import { addDays, rangeKeys } from "@/lib/time";
+import { computeDays, lastMaterializedDateFor, materializeDays, nowDateKey } from "@/attend/service";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const MAX_BACKFILL_DAYS = 31;
 
+function secretMatches(candidate: string | null): boolean {
+  if (!candidate || !CRON_SECRET) return false;
+  const a = Buffer.from(candidate);
+  const b = Buffer.from(CRON_SECRET);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 /**
  * Vercel Cron (schedule 0 18 * * * UTC = 00:00-00:59 Dhaka, see README).
  * Computes the *previous* Dhaka date so the job never races midnight scans.
  *
- * Self-healing: if the job was down, each run back-fills any missing dates
- * since the last successful run (capped so a cold first run stays bounded).
- * Idempotent: daily_status upserts keyed (employee_id, date); manual rows are
- * never overwritten (see materializeDay).
+ * Self-healing per employee: each run back-fills that employee's missing dates
+ * since their last materialized row (capped so a cold first run stays bounded,
+ * and never before their join date). Idempotent: daily_status upserts keyed
+ * (employee_id, date); manual rows are never overwritten.
  */
 export async function GET(request: Request) {
-  const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
   const queryKey = new URL(request.url).searchParams.get("cron");
-  if ((bearer && bearer === CRON_SECRET) || (queryKey && queryKey === CRON_SECRET)) {
-    // authorized
-  } else {
+  if (!secretMatches(bearer) && !secretMatches(queryKey)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -37,27 +43,25 @@ export async function GET(request: Request) {
 
   try {
     const target = addDays(nowDateKey(), -1); // previous Dhaka date
-    const last = await lastMaterializedDate();
-    let from = target;
-    if (last && last < target) from = addDays(last, 1);
-
-    // Bound the first run / long outages.
-    if (diffDays(from, target) >= MAX_BACKFILL_DAYS) from = addDays(target, -(MAX_BACKFILL_DAYS - 1));
-
+    const floor = addDays(target, -(MAX_BACKFILL_DAYS - 1));
     const employees = await collections().employees.find({ active: true }).toArray();
     let processed = 0;
     let skipped = 0;
-    const total = diffDays(from, target);
-    for (let i = 0; i <= total; i++) {
-      const date = addDays(from, i);
-      for (const emp of employees) {
-        try {
-          const computed = await computeDay(emp, date);
-          await materializeDay(computed);
-          processed++;
-        } catch {
+    for (const emp of employees) {
+      try {
+        const last = await lastMaterializedDateFor(emp._id);
+        let from = last && last < target ? addDays(last, 1) : !last ? floor : target;
+        if (from < floor) from = floor;
+        if (emp.joined_at && from < emp.joined_at) from = emp.joined_at;
+        if (from > target) {
           skipped++;
+          continue;
         }
+        const computed = await computeDays(emp, rangeKeys(from, target));
+        await materializeDays(computed);
+        processed += computed.length;
+      } catch {
+        skipped++;
       }
     }
 
@@ -69,8 +73,6 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       target,
-      from,
-      dates: total + 1,
       employees: employees.length,
       processed,
       skipped,
@@ -82,6 +84,6 @@ export async function GET(request: Request) {
       { _id: job.insertedId },
       { $set: { status: "error", finished_at: new Date(), error: msg } },
     );
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: "job failed" }, { status: 500 });
   }
 }

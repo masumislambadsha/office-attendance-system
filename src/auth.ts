@@ -15,6 +15,10 @@ function createAuth() {
   return betterAuth({
     database: mongodbAdapter(getDb(), { client: getMongoClient(), transaction: false }),
     baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+    trustedOrigins: (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
     secret: process.env.BETTER_AUTH_SECRET,
     advanced: {
       database: {
@@ -23,6 +27,7 @@ function createAuth() {
     },
     emailAndPassword: {
       enabled: true,
+      disableSignUp: true,
     },
     user: {
       additionalFields: {

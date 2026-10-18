@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { ObjectId } from "mongodb";
 import { collections } from "@/lib/mongo";
-import { requireEmployee } from "@/auth";
+import { currentSession } from "@/auth";
 import { verifyQrToken } from "@/lib/qr";
 import { CHECKIN_RATE_LIMIT, DUPLICATE_SCAN_WINDOW_MIN, OFFICE_CONFIGURED, OFFICE_LAT, OFFICE_LNG, OFFICE_RADIUS_M } from "@/lib/constants";
 import { computeDay, getEffectiveShift, getWorkingDayScans, materializeDay, nowDateKey } from "@/attend/service";
@@ -32,13 +32,16 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function isDuplicateKey(e: unknown): boolean {
+  return typeof e === "object" && e !== null && "code" in e && (e as { code?: number }).code === 11000;
+}
+
 export async function POST(request: Request) {
-  let user;
-  try {
-    user = await requireEmployee();
-  } catch {
+  const session = await currentSession();
+  if (!session) {
     return NextResponse.json({ error: "sign-in required", code: "not_authed" }, { status: 401 });
   }
+  const user = session.user;
   if (!user.role) {
     return NextResponse.json({ error: "no active employee record for this email", code: "no_employee" }, { status: 403 });
   }
@@ -59,9 +62,15 @@ export async function POST(request: Request) {
   const accuracy = body.accuracy != null ? Number(body.accuracy) : undefined;
   const hasLocation = Number.isFinite(lat) && Number.isFinite(lng);
 
+  // 1. QR signature + expiry (45s) — proves presence at the kiosk.
+  let payload;
   try {
-    // 1. QR signature + expiry (45s) — proves presence at the kiosk.
-    const payload = await verifyQrToken(token);
+    payload = await verifyQrToken(token);
+  } catch {
+    return NextResponse.json({ error: "invalid or expired token", code: "invalid_token" }, { status: 401 });
+  }
+
+  try {
 
     const employee = await collections().employees.findOne({ email: user.email.toLowerCase(), active: true });
     if (!employee) {
@@ -113,8 +122,11 @@ export async function POST(request: Request) {
     // 4. Single-use token — insert jti first; a replay hits the unique index.
     try {
       await collections().usedTokens.insertOne({ _id: new ObjectId(), jti: payload.jti, createdAt: now });
-    } catch {
-      return NextResponse.json({ error: "token already used", code: "token_replayed" }, { status: 409 });
+    } catch (e) {
+      if (isDuplicateKey(e)) {
+        return NextResponse.json({ error: "token already used", code: "token_replayed" }, { status: 409 });
+      }
+      throw e;
     }
 
     // 5. Duplicate-window protection: ignore scans within the window of the last one.
@@ -143,8 +155,8 @@ export async function POST(request: Request) {
         ? hhmmToMinutes(eff.shift.end_time)
         : 0;
     const overnight = eff.shift ? isOvernightShift(startMin, endMin) : false;
-    const workDate = eff.shift ? workingDateForScan(startMin, overnight, now) : today;
-    const workScans = await getWorkingDayScans(employee._id, workDate, startMin, overnight);
+    const workDate = eff.shift ? workingDateForScan(startMin, endMin, overnight, now) : today;
+    const workScans = await getWorkingDayScans(employee._id, workDate, startMin, endMin, overnight);
     const kind: "in" | "out" = workScans.length === 0 ? "in" : "out";
 
     await collections().checkIns.insertOne({
@@ -180,7 +192,7 @@ export async function POST(request: Request) {
       message: kind === "in" ? "Checked in" : "Checked out",
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "error";
-    return NextResponse.json({ error: msg, code: "invalid_token" }, { status: 401 });
+    console.error("check-in failed", e);
+    return NextResponse.json({ error: "internal error", code: "internal" }, { status: 500 });
   }
 }
