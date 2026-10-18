@@ -7,8 +7,9 @@ import { currentMonthKey, daysInMonth, rangeKeys } from "@/lib/time";
 import { DAY_STATUSES, DayStatus } from "@/attend/types";
 import { ErrorBanner } from "@/components/ui";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { DatePickerField } from "@/components/ui/date-picker";
+import { buttonVariants } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { DateRangePickerField } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select";
@@ -60,9 +61,9 @@ export default async function AdminSheetPage({ searchParams }: Props) {
           <Label htmlFor="sheet-month">Month</Label>
           <input id="sheet-month" name="month" type="month" defaultValue={month} className="form-input" />
         </div>
-        <Button type="submit" variant="secondary">
+        <SubmitButton variant="secondary">
           Show
-        </Button>
+        </SubmitButton>
         {isClosed ? (
           <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
             closed — corrections blocked
@@ -142,8 +143,8 @@ export default async function AdminSheetPage({ searchParams }: Props) {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Overrides a day&apos;s status with a mandatory reason. Every correction is appended to the
-            audit log. Blocked while the month is closed{" "}
+            Overrides a day&apos;s status with a mandatory reason. Pick a single day or a span to apply the same
+            status across the range. Every correction is appended to the audit log. Blocked while the month is closed{" "}
             {isClosed ? (
               <span className="text-amber-600">— reopen it first.</span>
             ) : (
@@ -158,7 +159,7 @@ export default async function AdminSheetPage({ searchParams }: Props) {
               defaultValue={employees[0]?._id.toString()}
               isRequired
             />
-            <DatePickerField name="date" ariaLabel="Date" isRequired />
+            <DateRangePickerField name="from" endName="to" ariaLabel="Date or date range" isRequired />
             <SelectField
               name="status"
               ariaLabel="Status"
@@ -170,15 +171,15 @@ export default async function AdminSheetPage({ searchParams }: Props) {
               isRequired
             />
             <Input name="reason" required placeholder="Reason (mandatory)" aria-label="Reason (mandatory)" />
-            <Button type="submit" variant="destructive" disabled={isClosed}>
+            <SubmitButton variant="destructive" disabled={isClosed}>
               Apply correction
-            </Button>
+            </SubmitButton>
           </form>
 
           <div className="mt-6 border-t border-warm-100 pt-4">
             <p className="mb-2 text-sm font-medium text-[#1a1a1a]">Clear manual override</p>
             <p className="mb-2 text-xs text-muted-foreground">
-              Removes a manual override and restores the computed status for that day.
+              Removes manual overrides and restores the computed status — for one day or a whole range.
             </p>
             <form action={clearManualOverride} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <SelectField
@@ -188,10 +189,10 @@ export default async function AdminSheetPage({ searchParams }: Props) {
                 defaultValue={employees[0]?._id.toString()}
                 isRequired
               />
-              <DatePickerField name="date" ariaLabel="Date" isRequired />
-              <Button type="submit" variant="secondary" disabled={isClosed}>
+              <DateRangePickerField name="from" endName="to" ariaLabel="Date or date range" isRequired />
+              <SubmitButton variant="secondary" disabled={isClosed}>
                 Clear override
-              </Button>
+              </SubmitButton>
             </form>
           </div>
         </CardContent>

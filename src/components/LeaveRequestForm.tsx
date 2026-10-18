@@ -5,7 +5,7 @@ import { Checkbox } from "@heroui/react";
 import { requestLeaveState, type LeaveActionResult } from "@/actions/leave";
 import { ActionError } from "@/components/ui";
 import { Button } from "@/components/ui/button";
-import { DatePickerField } from "@/components/ui/date-picker";
+import { DateRangePickerField } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/ui/select";
@@ -43,13 +43,15 @@ export function LeaveRequestForm({ types, today }: { types: LeaveTypeOption[]; t
             isRequired
           />
         </div>
-        <div className="grid gap-1.5">
-          <Label id="leave-from-label">From</Label>
-          <DatePickerField name="from" labelledBy="leave-from-label" minValue={today} isRequired />
-        </div>
-        <div className="grid gap-1.5">
-          <Label id="leave-to-label">To</Label>
-          <DatePickerField name="to" labelledBy="leave-to-label" minValue={today} isRequired />
+        <div className="grid gap-1.5 sm:col-span-2">
+          <Label id="leave-range-label">From – to</Label>
+          <DateRangePickerField
+            name="from"
+            endName="to"
+            labelledBy="leave-range-label"
+            minValue={today}
+            isRequired
+          />
         </div>
         <Checkbox name="half_day" className="pt-5 text-sm">
           <Checkbox.Content>
@@ -64,8 +66,8 @@ export function LeaveRequestForm({ types, today }: { types: LeaveTypeOption[]; t
           <Input id="leave-reason" name="reason" placeholder="Reason (optional)" aria-label="Reason (optional)" />
         </div>
         <div className="sm:col-span-2">
-          <Button type="submit" disabled={pending}>
-            {pending ? "Submitting…" : "Submit request"}
+          <Button type="submit" loading={pending}>
+            Submit request
           </Button>
         </div>
       </form>

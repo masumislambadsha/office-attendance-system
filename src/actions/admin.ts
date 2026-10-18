@@ -6,7 +6,7 @@ import { ObjectId } from "mongodb";
 import { collections } from "@/lib/mongo";
 import { requireAdmin } from "@/auth";
 import { writeAudit } from "@/actions/audit";
-import { monthOf } from "@/lib/time";
+import { monthOf, rangeKeys } from "@/lib/time";
 import { DAY_STATUSES, DayStatus } from "@/attend/types";
 import { closeMonth, reopenMonth } from "@/attend/payroll";
 import { computeDay, materializeDay } from "@/attend/service";
@@ -153,23 +153,67 @@ export async function saveShift(formData: FormData): Promise<void> {
   revalidatePath("/admin/shifts");
 }
 
+const HOLIDAY_MAX_DAYS = 366;
+
+/**
+ * Marks every day in [from, to] as a holiday under one name. Single-day adds are
+ * just a range where from === to, so one code path serves both.
+ */
 export async function addHoliday(formData: FormData): Promise<void> {
   const actor = await requireAdmin();
-  const date = String(formData.get("date") ?? "");
+  const from = String(formData.get("from") ?? "");
+  const to = String(formData.get("to") ?? "") || from;
   const name = String(formData.get("name") ?? "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !name) return fail("/admin/holidays", "date and name required");
-  await collections().holidays.updateOne({ _id: date }, { $set: { name } }, { upsert: true });
-  await writeAudit({ actor: actor.email, action: "holiday.create", entity: `holidays:${date}`, old: null, new: { name } });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    return fail("/admin/holidays", "valid start and end dates required");
+  }
+  if (!name) return fail("/admin/holidays", "name required");
+  const days = rangeKeys(from, to);
+  if (days.length === 0) return fail("/admin/holidays", "end date is before start date");
+  if (days.length > HOLIDAY_MAX_DAYS) {
+    return fail("/admin/holidays", `range too long — max ${HOLIDAY_MAX_DAYS} days at a time`);
+  }
+  const now = new Date();
+  const ops = days.map((date) => ({
+    updateOne: {
+      filter: { _id: date },
+      update: { $set: { name }, $setOnInsert: { createdAt: now } },
+      upsert: true,
+    },
+  }));
+  await collections().holidays.bulkWrite(ops);
+  await writeAudit({
+    actor: actor.email,
+    action: "holiday.create",
+    entity: days.length === 1 ? `holidays:${days[0]}` : `holidays:${from}..${to}`,
+    old: null,
+    new: { name, days: days.length },
+  });
   revalidatePath("/admin/holidays");
 }
 
 export async function removeHoliday(formData: FormData): Promise<void> {
   const actor = await requireAdmin();
-  const date = String(formData.get("date") ?? "");
-  const existing = await collections().holidays.findOne({ _id: date });
-  if (!existing) return fail("/admin/holidays", "holiday not found");
-  await collections().holidays.deleteOne({ _id: date });
-  await writeAudit({ actor: actor.email, action: "holiday.delete", entity: `holidays:${date}`, old: { name: existing.name }, new: null });
+  const from = String(formData.get("from") ?? "");
+  const to = String(formData.get("to") ?? "") || from;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    return fail("/admin/holidays", "valid start and end dates required");
+  }
+  const days = rangeKeys(from, to);
+  if (days.length === 0) return fail("/admin/holidays", "end date is before start date");
+  if (days.length > HOLIDAY_MAX_DAYS) {
+    return fail("/admin/holidays", `range too long — max ${HOLIDAY_MAX_DAYS} days at a time`);
+  }
+  const existing = await collections().holidays.find({ _id: { $in: days } }).toArray();
+  if (existing.length === 0) return fail("/admin/holidays", "no holidays in that range");
+  await collections().holidays.deleteMany({ _id: { $in: days } });
+  await writeAudit({
+    actor: actor.email,
+    action: "holiday.delete",
+    entity: existing.length === 1 ? `holidays:${existing[0]._id}` : `holidays:${from}..${to}`,
+    old: { names: [...new Set(existing.map((h) => h.name))], days: existing.length },
+    new: null,
+  });
   revalidatePath("/admin/holidays");
 }
 
@@ -194,63 +238,88 @@ export async function setDeviceStatus(formData: FormData): Promise<void> {
   revalidatePath("/admin/devices");
 }
 
+const CORRECTION_MAX_DAYS = 366;
+
+/** Shared validation for the two range-based sheet forms. */
+function parseRange(formData: FormData): { from: string; to: string; days: string[] } {
+  const from = String(formData.get("from") ?? "");
+  const to = String(formData.get("to") ?? "") || from;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    fail("/admin/sheet", "bad input");
+  }
+  const days = rangeKeys(from, to);
+  if (days.length > CORRECTION_MAX_DAYS) {
+    fail("/admin/sheet", `range too long — max ${CORRECTION_MAX_DAYS} days at a time`);
+  }
+  return { from, to, days };
+}
+
+/** A range may not span any month that payroll has locked. */
+async function assertMonthsOpen(days: string[]): Promise<void> {
+  const { isMonthClosed } = await import("@/attend/payroll");
+  for (const month of new Set(days.map(monthOf))) {
+    if (await isMonthClosed(month)) {
+      fail("/admin/sheet", `month ${month} is closed — reopen it before correcting`);
+    }
+  }
+}
+
 export async function manualCorrect(formData: FormData): Promise<void> {
   const actor = await requireAdmin();
   const employeeId = String(formData.get("employee_id") ?? "");
-  const date = String(formData.get("date") ?? "");
   const status = String(formData.get("status") ?? "") as DayStatus;
   const reason = String(formData.get("reason") ?? "").trim();
 
-  if (!ObjectId.isValid(employeeId) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return fail("/admin/sheet", "bad input");
+  if (!ObjectId.isValid(employeeId)) return fail("/admin/sheet", "bad input");
   if (!DAY_STATUSES.includes(status)) return fail("/admin/sheet", "bad status");
   if (!reason) return fail("/admin/sheet", "a reason is mandatory for corrections");
 
-  const month = monthOf(date);
-  const { isMonthClosed } = await import("@/attend/payroll");
-  if (await isMonthClosed(month)) {
-    return fail("/admin/sheet", `month ${month} is closed — reopen it before correcting`);
-  }
+  const { from, to, days } = parseRange(formData);
+  await assertMonthsOpen(days);
 
   const employee = await collections().employees.findOne({ _id: new ObjectId(employeeId) });
   if (!employee) return fail("/admin/sheet", "employee not found");
 
-  const existing = await collections().dailyStatus.findOne({
-    employee_id: employee._id,
-    date,
-  });
-
   // A manual "leave" keeps the paid/unpaid classification of the covering request.
-  let leaveTypeId: string | null = null;
-  if (status === "leave") {
+  // The covering request can differ per day, so this is resolved inside the loop.
+  const leaveFor = async (date: string): Promise<string | null> => {
+    if (status !== "leave") return null;
     const covering = await collections().leaveRequests
       .find({ employee_id: employee._id, status: "approved", from: { $lte: date }, to: { $gte: date } })
       .toArray();
     const leave = covering.find((r) => !r.half_day) ?? covering[0] ?? null;
-    leaveTypeId = leave?.type_id ?? null;
+    return leave?.type_id ?? null;
+  };
+
+  for (const date of days) {
+    const existing = await collections().dailyStatus.findOne({
+      employee_id: employee._id,
+      date,
+    });
+
+    const set = {
+      status,
+      late_min: 0,
+      flag: null,
+      leave_type_id: await leaveFor(date),
+      source: "manual",
+      updated_at: new Date(),
+    } as const;
+    await collections().dailyStatus.updateOne(
+      { employee_id: employee._id, date },
+      { $set: set, $setOnInsert: { _id: new ObjectId(), employee_id: employee._id, date } },
+      { upsert: true },
+    );
+
+    await writeAudit({
+      actor: actor.email,
+      action: "daily_status.correct",
+      entity: `daily_status:${employeeId}:${date}`,
+      old: existing ? { status: existing.status, source: existing.source } : null,
+      new: { status, source: "manual" },
+      reason: days.length > 1 ? `${reason} (applied ${from}..${to})` : reason,
+    });
   }
-
-  const set = {
-    status,
-    late_min: 0,
-    flag: null,
-    leave_type_id: leaveTypeId,
-    source: "manual",
-    updated_at: new Date(),
-  } as const;
-  await collections().dailyStatus.updateOne(
-    { employee_id: employee._id, date },
-    { $set: set, $setOnInsert: { _id: new ObjectId(), employee_id: employee._id, date } },
-    { upsert: true },
-  );
-
-  await writeAudit({
-    actor: actor.email,
-    action: "daily_status.correct",
-    entity: `daily_status:${employeeId}:${date}`,
-    old: existing ? { status: existing.status, source: existing.source } : null,
-    new: { status, source: "manual" },
-    reason,
-  });
 
   revalidatePath("/admin");
   revalidatePath("/admin/sheet");
@@ -260,33 +329,36 @@ export async function manualCorrect(formData: FormData): Promise<void> {
 export async function clearManualOverride(formData: FormData): Promise<void> {
   const actor = await requireAdmin();
   const employeeId = String(formData.get("employee_id") ?? "");
-  const date = String(formData.get("date") ?? "");
-  if (!ObjectId.isValid(employeeId) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return fail("/admin/sheet", "bad input");
 
-  const month = monthOf(date);
-  const { isMonthClosed } = await import("@/attend/payroll");
-  if (await isMonthClosed(month)) {
-    return fail("/admin/sheet", `month ${month} is closed — reopen it before clearing`);
-  }
+  if (!ObjectId.isValid(employeeId)) return fail("/admin/sheet", "bad employee id");
+
+  const { days } = parseRange(formData);
+  await assertMonthsOpen(days);
 
   const employee = await collections().employees.findOne({ _id: new ObjectId(employeeId) });
   if (!employee) return fail("/admin/sheet", "employee not found");
 
-  const existing = await collections().dailyStatus.findOne({ employee_id: employee._id, date });
-  if (!existing || existing.source !== "manual") return fail("/admin/sheet", "no manual override on that day");
+  let cleared = 0;
+  for (const date of days) {
+    const existing = await collections().dailyStatus.findOne({ employee_id: employee._id, date });
+    if (!existing || existing.source !== "manual") continue;
 
-  await collections().dailyStatus.deleteOne({ _id: existing._id, source: "manual" });
-  const computed = await computeDay(employee, date);
-  await materializeDay(computed);
+    await collections().dailyStatus.deleteOne({ _id: existing._id, source: "manual" });
+    const computed = await computeDay(employee, date);
+    await materializeDay(computed);
+    cleared++;
 
-  await writeAudit({
-    actor: actor.email,
-    action: "daily_status.clear_override",
-    entity: `daily_status:${employeeId}:${date}`,
-    old: { status: existing.status, source: "manual" },
-    new: { status: computed.output.status, source: "auto" },
-    reason: "manual override cleared",
-  });
+    await writeAudit({
+      actor: actor.email,
+      action: "daily_status.clear_override",
+      entity: `daily_status:${employeeId}:${date}`,
+      old: { status: existing.status, source: "manual" },
+      new: { status: computed.output.status, source: "auto" },
+      reason: days.length > 1 ? `manual override cleared across ${days.length} day(s)` : "manual override cleared",
+    });
+  }
+
+  if (cleared === 0) return fail("/admin/sheet", "no manual override on those day(s)");
 
   revalidatePath("/admin");
   revalidatePath("/admin/sheet");

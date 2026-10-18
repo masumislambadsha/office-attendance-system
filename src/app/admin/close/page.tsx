@@ -5,7 +5,7 @@ import { monthLabel } from "@/attend/leave";
 import { currentMonthKey } from "@/lib/time";
 import { Row, ErrorBanner } from "@/components/ui";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Label } from "@/components/ui/label";
 import { NumberFieldField } from "@/components/ui/number-field";
 import { SelectField } from "@/components/ui/select";
@@ -51,7 +51,7 @@ export default async function AdminClosePage({ searchParams }: Props) {
                   className="form-input"
                 />
               </div>
-              <Button type="submit">Close month</Button>
+              <SubmitButton>Close month</SubmitButton>
             </form>
           </CardContent>
         </Card>
@@ -76,9 +76,9 @@ export default async function AdminClosePage({ searchParams }: Props) {
                   defaultValue={closes[0]?._id}
                 />
               </div>
-              <Button type="submit" variant="destructive">
+              <SubmitButton variant="destructive">
                 Reopen
-              </Button>
+              </SubmitButton>
             </form>
             {closes.length === 0 && (
               <p className="mt-2 text-sm text-muted-foreground">No closed months yet.</p>
@@ -108,9 +108,9 @@ export default async function AdminClosePage({ searchParams }: Props) {
                   ariaLabel={r.label}
                   className="w-20"
                 />
-                <Button type="submit" variant="secondary" size="sm">
+                <SubmitButton variant="secondary" size="sm">
                   Save
-                </Button>
+                </SubmitButton>
               </form>
             ))}
           </div>

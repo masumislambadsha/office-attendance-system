@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { saveEmployee } from "@/actions/admin";
 import { ErrorBanner } from "@/components/ui";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Checkbox } from "@heroui/react";
-import { DatePickerField } from "@/components/ui/date-picker";
+import { DateRangePickerField } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { NumberFieldField } from "@/components/ui/number-field";
 import { SelectField } from "@/components/ui/select";
@@ -81,10 +82,11 @@ export function EmployeeFormDialog({ employees, shifts }: { employees: Employee[
             options={shifts.map((s) => ({ value: s._id, label: s.name }))}
             defaultValue={editing?.shift_id}
           />
-          <DatePickerField
+          <DateRangePickerField
             name="joined_at"
+            endName="joined_at_end"
             ariaLabel="Join date"
-            defaultValue={editing?.joined_at}
+            defaultFrom={editing?.joined_at}
             isRequired
           />
           <NumberFieldField
@@ -124,7 +126,7 @@ export function EmployeeFormDialog({ employees, shifts }: { employees: Employee[
             </Checkbox.Content>
           </Checkbox>
           <DialogFooter className="sm:col-span-2">
-            <Button type="submit">{editing ? "Save changes" : "Add employee"}</Button>
+            <SubmitButton>{editing ? "Save changes" : "Add employee"}</SubmitButton>
             <Button type="button" variant="outline" onClick={close}>
               Cancel
             </Button>
