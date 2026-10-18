@@ -1,6 +1,6 @@
 import { collections } from "@/lib/mongo";
 import { requireEmployee } from "@/auth";
-import { computeDay, nowDateKey } from "@/attend/service";
+import { computeDays, nowDateKey } from "@/attend/service";
 import { getAllLeaveTypes, availableBalance } from "@/attend/leave";
 import { daysInMonth, rangeKeys, weekdayOf } from "@/lib/time";
 import { Card, CardContent, StatusBadge } from "@/components/ui";
@@ -45,14 +45,12 @@ export default async function MyAttendancePage() {
     );
   }
 
-  const day = await computeDay(employee, today);
+  const [day] = await computeDays(employee, [today]);
   const month = today.slice(0, 7);
   const totalDays = daysInMonth(month);
   const keys = rangeKeys(`${month}-01`, `${month}-${String(totalDays).padStart(2, "0")}`);
 
-  const cellDays = await Promise.all(
-    keys.map(async (k) => ({ key: k, status: (await computeDay(employee, k)).output.status })),
-  );
+  const cellDays = (await computeDays(employee, keys)).map((d) => ({ key: d.date, status: d.output.status }));
 
   const year = Number(month.slice(0, 4));
   const types = await getAllLeaveTypes();
@@ -228,6 +226,9 @@ export default async function MyAttendancePage() {
           <div className="mt-6 flex gap-2">
             <a href="/me/leave" className={buttonVariants({ size: "sm" })}>
               Request leave
+            </a>
+            <a href="/me/history" className={buttonVariants({ size: "sm", variant: "secondary" })}>
+              Full history
             </a>
             <a href="/scan" className={buttonVariants({ size: "sm", variant: "secondary" })}>
               Open scanner

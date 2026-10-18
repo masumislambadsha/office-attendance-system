@@ -13,12 +13,30 @@ export default function KioskDisplay() {
   useEffect(() => {
     let alive = true;
 
+    // The kiosk key arrives once as /kiosk?key=…; exchange it for the signed
+    // cookie, then strip it from the address bar so it is not left on screen.
+    const url = new URL(window.location.href);
+    const kioskKey = url.searchParams.get("key");
+    if (kioskKey) {
+      url.searchParams.delete("key");
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    }
+
+    const mint = () => fetch("/api/kiosk/token", { cache: "no-store" });
+
     const tick = async (): Promise<void> => {
       try {
-        let res = await fetch("/api/kiosk/token", { cache: "no-store" });
+        let res = await mint();
         if (res.status === 401) {
-          await fetch("/api/kiosk/cookie", { cache: "no-store" });
-          res = await fetch("/api/kiosk/token", { cache: "no-store" });
+          const bootstrap = kioskKey
+            ? `/api/kiosk/cookie?key=${encodeURIComponent(kioskKey)}`
+            : "/api/kiosk/cookie";
+          await fetch(bootstrap, { cache: "no-store" });
+          res = await mint();
+        }
+        if (res.status === 401 || res.status === 503) {
+          if (alive) setError("Kiosk not authorized — open this page with its ?key= link");
+          return;
         }
         if (!res.ok) throw new Error("could not reach token service");
         const data = (await res.json()) as { qr: string; expiresAt: string };

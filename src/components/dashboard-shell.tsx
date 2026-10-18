@@ -15,6 +15,7 @@ import {
   ScanLine,
   LogOut,
   Menu,
+  History,
   Building2,
   type LucideIcon,
 } from "lucide-react";
@@ -28,6 +29,7 @@ type NavItem = {
 
 const EMPLOYEE_NAV: NavItem[] = [
   { icon: LayoutDashboard, label: "My attendance", href: "/me" },
+  { icon: History, label: "History", href: "/me/history" },
   { icon: CalendarDays, label: "Leave", href: "/me/leave" },
   { icon: ScanLine, label: "Scanner", href: "/scan" },
 ];

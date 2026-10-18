@@ -105,19 +105,23 @@ export function EmployeeFormDialog({ employees, shifts }: { employees: Employee[
                   defaultSelected={editing?.weekly_off.includes(Number(v)) ?? false}
                   className="text-sm"
                 >
-                  <Checkbox.Content>{label}</Checkbox.Content>
-                  <Checkbox.Control>
-                    <Checkbox.Indicator />
-                  </Checkbox.Control>
+                  <Checkbox.Content>
+                    {label}
+                    <Checkbox.Control>
+                      <Checkbox.Indicator />
+                    </Checkbox.Control>
+                  </Checkbox.Content>
                 </Checkbox>
               ))}
             </div>
           </div>
           <Checkbox name="active" defaultSelected={editing?.active ?? true} className="text-sm">
-            <Checkbox.Content>Active</Checkbox.Content>
-            <Checkbox.Control>
-              <Checkbox.Indicator />
-            </Checkbox.Control>
+            <Checkbox.Content>
+              Active
+              <Checkbox.Control>
+                <Checkbox.Indicator />
+              </Checkbox.Control>
+            </Checkbox.Content>
           </Checkbox>
           <DialogFooter className="sm:col-span-2">
             <Button type="submit">{editing ? "Save changes" : "Add employee"}</Button>

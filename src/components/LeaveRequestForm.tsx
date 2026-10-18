@@ -52,10 +52,12 @@ export function LeaveRequestForm({ types, today }: { types: LeaveTypeOption[]; t
           <DatePickerField name="to" labelledBy="leave-to-label" minValue={today} isRequired />
         </div>
         <Checkbox name="half_day" className="pt-5 text-sm">
-          <Checkbox.Content>Half day</Checkbox.Content>
-          <Checkbox.Control>
-            <Checkbox.Indicator />
-          </Checkbox.Control>
+          <Checkbox.Content>
+            Half day
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+          </Checkbox.Content>
         </Checkbox>
         <div className="grid gap-1.5 sm:col-span-2">
           <Label htmlFor="leave-reason">Reason (optional)</Label>

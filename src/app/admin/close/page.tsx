@@ -2,6 +2,7 @@ import { collections } from "@/lib/mongo";
 import { closeMonthAction, reopenMonthAction, updateDeductionRule } from "@/actions/admin";
 import { latestJobRun } from "@/attend/payroll";
 import { monthLabel } from "@/attend/leave";
+import { currentMonthKey } from "@/lib/time";
 import { Row, ErrorBanner } from "@/components/ui";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,11 +18,10 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 export default async function AdminClosePage({ searchParams }: Props) {
   const query = await searchParams;
   const error = typeof query?.error === "string" ? query.error : null;
-  const [rules, closes, job, now] = await Promise.all([
+  const [rules, closes, job] = await Promise.all([
     collections().deductionRules.find({}).sort({ _id: 1 }).toArray(),
     collections().payrollCloses.find({}).sort({ _id: 1 }).toArray(),
     latestJobRun(),
-    Promise.resolve(new Date()),
   ]);
 
   return (
@@ -47,7 +47,7 @@ export default async function AdminClosePage({ searchParams }: Props) {
                   name="month"
                   type="month"
                   required
-                  defaultValue={presentMonth(now)}
+                  defaultValue={currentMonthKey()}
                   className="form-input"
                 />
               </div>
@@ -133,8 +133,4 @@ export default async function AdminClosePage({ searchParams }: Props) {
       </Card>
     </div>
   );
-}
-
-function presentMonth(now: Date): string {
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }

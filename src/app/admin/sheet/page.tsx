@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { collections } from "@/lib/mongo";
-import { manualCorrect } from "@/actions/admin";
+import { clearManualOverride, manualCorrect } from "@/actions/admin";
 import { monthlySheet } from "@/attend/payroll";
 import { monthLabel } from "@/attend/leave";
-import { daysInMonth, rangeKeys } from "@/lib/time";
+import { currentMonthKey, daysInMonth, rangeKeys } from "@/lib/time";
 import { DAY_STATUSES, DayStatus } from "@/attend/types";
 import { ErrorBanner } from "@/components/ui";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,12 +29,13 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 export default async function AdminSheetPage({ searchParams }: Props) {
   const query = await searchParams;
   const error = typeof query?.error === "string" ? query.error : null;
-  const month = typeof query?.month === "string" && /^\d{4}-\d{2}$/.test(query.month) ? query.month : currentMonth();
-  const [sheet, employees, closes, holidays] = await Promise.all([
+  const month = typeof query?.month === "string" && /^\d{4}-\d{2}$/.test(query.month) ? query.month : currentMonthKey();
+  const [sheet, employees, closes, holidays, rules] = await Promise.all([
     monthlySheet(month),
     collections().employees.find({ active: true }).sort({ name: 1 }).toArray(),
     collections().payrollCloses.find({ _id: month }).toArray(),
     collections().holidays.find({ _id: { $regex: `^${month}-` } }).toArray(),
+    collections().deductionRules.find({}).toArray(),
   ]);
   const holidaySet = new Set(holidays.map((h) => String(h._id)));
   const isClosed = closes.length > 0;
@@ -42,6 +43,12 @@ export default async function AdminSheetPage({ searchParams }: Props) {
   const holidayCount = rangeKeys(`${month}-01`, `${month}-${String(totalDays).padStart(2, "0")}`).filter((d) =>
     holidaySet.has(d),
   ).length;
+  const ruleValue = (key: string, fallback: number) =>
+    Math.max(1, rules.find((r) => r._id === key)?.value ?? fallback);
+  const halfMul = rules.find((r) => r._id === "half_day_multiplier")?.value ?? 0.5;
+  const unpaidMul = rules.find((r) => r._id === "unpaid_leave_multiplier")?.value ?? 1;
+  const latesPerAbsent = ruleValue("lates_per_absent", 3);
+  const divisor = ruleValue("absent_day_divisor", 30);
 
   return (
     <div>
@@ -122,8 +129,9 @@ export default async function AdminSheetPage({ searchParams }: Props) {
             </Table>
           </div>
           <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">
-            {totalDays} calendar days · {holidayCount} holidays in month. Deduction days = absents −
-            floor(lates / 3) − approved unpaid leave; amount = gross / 30 × deduction days.
+            {totalDays} calendar days · {holidayCount} holidays in month. Deduction days = absents +
+            {halfMul} × half-days + {unpaidMul} × unpaid leave days + floor(lates / {latesPerAbsent});
+            amount = gross / {divisor} × deduction days.
           </p>
         </Card>
       )}
@@ -166,13 +174,28 @@ export default async function AdminSheetPage({ searchParams }: Props) {
               Apply correction
             </Button>
           </form>
+
+          <div className="mt-6 border-t border-warm-100 pt-4">
+            <p className="mb-2 text-sm font-medium text-[#1a1a1a]">Clear manual override</p>
+            <p className="mb-2 text-xs text-muted-foreground">
+              Removes a manual override and restores the computed status for that day.
+            </p>
+            <form action={clearManualOverride} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <SelectField
+                name="employee_id"
+                ariaLabel="Employee"
+                options={employees.map((e) => ({ value: e._id.toString(), label: e.name }))}
+                defaultValue={employees[0]?._id.toString()}
+                isRequired
+              />
+              <DatePickerField name="date" ariaLabel="Date" isRequired />
+              <Button type="submit" variant="secondary" disabled={isClosed}>
+                Clear override
+              </Button>
+            </form>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
-}
-
-function currentMonth(): string {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }

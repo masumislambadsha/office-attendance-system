@@ -6,5 +6,5 @@ export default async function LoginPage() {
   const googleEnabled = Boolean(
     process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
   );
-  return <LoginForm googleEnabled={googleEnabled} />;
+  return <LoginForm googleEnabled={googleEnabled} demoEnabled={process.env.NODE_ENV !== "production"} />;
 }

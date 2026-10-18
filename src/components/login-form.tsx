@@ -7,7 +7,7 @@ import { ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles, TriangleAlert } from "lu
 const DEMO_EMAIL = "demo.admin@demo.com";
 const DEMO_PASSWORD = "demo123456";
 
-export default function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
+export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnabled: boolean; demoEnabled: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -192,21 +192,23 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
             </div>
           )}
 
-          <div className="mt-7 rounded-2xl border border-warm-200 bg-warm-50 p-5">
-            <div className="mb-2 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-sage-600" />
-              <p className="text-sm font-semibold text-[#1a1a1a]">Try the demo account</p>
+          {demoEnabled && (
+            <div className="mt-7 rounded-2xl border border-warm-200 bg-warm-50 p-5">
+              <div className="mb-2 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-sage-600" />
+                <p className="text-sm font-semibold text-[#1a1a1a]">Try the demo account</p>
+              </div>
+              <p className="mb-4 text-xs text-warm-700">One click to sign in as demo admin.</p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void signInWith(DEMO_EMAIL, DEMO_PASSWORD)}
+                className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-sage-600 px-5 py-2.5 text-xs font-semibold text-white transition-all duration-300 hover:bg-sage-700 active:scale-[0.98] disabled:opacity-50"
+              >
+                Sign in as {DEMO_EMAIL}
+              </button>
             </div>
-            <p className="mb-4 text-xs text-warm-700">One click to sign in as demo admin.</p>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void signInWith(DEMO_EMAIL, DEMO_PASSWORD)}
-              className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-sage-600 px-5 py-2.5 text-xs font-semibold text-white transition-all duration-300 hover:bg-sage-700 active:scale-[0.98] disabled:opacity-50"
-            >
-              Sign in as {DEMO_EMAIL}
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </main>

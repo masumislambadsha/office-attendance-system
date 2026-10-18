@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { collections } from "@/lib/mongo";
 import { saveShift } from "@/actions/admin";
 import { ErrorBanner } from "@/components/ui";
@@ -16,8 +17,10 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 export default async function AdminShiftsPage({ searchParams }: Props) {
   const query = await searchParams;
   const error = typeof query?.error === "string" ? query.error : null;
+  const editId = typeof query?.edit === "string" ? query.edit : null;
   const shifts = await collections().shifts.find({}).sort({ _id: 1 }).toArray();
   const overrides = await collections().shiftOverrides.find({}).sort({ date_from: 1 }).toArray();
+  const editing = editId ? shifts.find((s) => s._id === editId) ?? null : null;
 
   return (
     <div>
@@ -26,36 +29,37 @@ export default async function AdminShiftsPage({ searchParams }: Props) {
 
       <Card className="mt-4">
         <CardHeader>
-          <CardTitle>Add / edit shift</CardTitle>
+          <CardTitle>{editing ? `Edit shift · ${editing.name}` : "Add / edit shift"}</CardTitle>
         </CardHeader>
         <CardContent>
           <form action={saveShift} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-            <Input name="name" required placeholder="Name (e.g. Day Shift)" aria-label="Shift name" />
-            <TimeFieldField name="start_time" defaultValue="09:00" ariaLabel="Start time" isRequired />
-            <TimeFieldField name="end_time" defaultValue="18:00" ariaLabel="End time" isRequired />
+            {editing && <input type="hidden" name="id" value={editing._id} />}
+            <Input name="name" required defaultValue={editing?.name} placeholder="Name (e.g. Day Shift)" aria-label="Shift name" />
+            <TimeFieldField name="start_time" defaultValue={editing?.start_time ?? "09:00"} ariaLabel="Start time" isRequired />
+            <TimeFieldField name="end_time" defaultValue={editing?.end_time ?? "18:00"} ariaLabel="End time" isRequired />
             <NumberFieldField
               name="grace_min"
               minValue={0}
-              defaultValue={10}
+              defaultValue={editing?.grace_min ?? 10}
               placeholder="Grace (min)"
               ariaLabel="Grace minutes"
             />
             <NumberFieldField
               name="half_day_after_min"
               minValue={0}
-              defaultValue={60}
+              defaultValue={editing?.half_day_after_min ?? 60}
               placeholder="Half-day after"
               ariaLabel="Half-day after minutes"
             />
             <NumberFieldField
               name="early_exit_min"
               minValue={0}
-              defaultValue={60}
+              defaultValue={editing?.early_exit_min ?? 60}
               placeholder="Early-exit (min)"
               ariaLabel="Early exit minutes"
             />
             <div className="sm:col-span-2 lg:col-span-6">
-              <Button type="submit">Save shift</Button>
+              <Button type="submit">{editing ? "Save changes" : "Save shift"}</Button>
             </div>
           </form>
         </CardContent>
@@ -67,7 +71,12 @@ export default async function AdminShiftsPage({ searchParams }: Props) {
             <CardContent className="px-4 py-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-medium">{s.name}</h3>
-                <span className="font-mono text-xs text-muted-foreground">{s._id}</span>
+                <span className="flex items-center gap-2">
+                  <Link href={`/admin/shifts?edit=${s._id}`} className="text-xs font-medium text-blue-600 hover:underline">
+                    Edit
+                  </Link>
+                  <span className="font-mono text-xs text-muted-foreground">{s._id}</span>
+                </span>
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
                 {s.start_time}–{s.end_time} · grace {s.grace_min}m · half-day after {s.half_day_after_min}m · early-exit{" "}
