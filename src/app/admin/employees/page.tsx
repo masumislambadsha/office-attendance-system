@@ -2,7 +2,7 @@
 import { toggleEmployeeActive } from "@/actions/admin";
 import { EmployeeFormDialog } from "@/components/employee-form-dialog";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
@@ -84,13 +84,13 @@ export default async function AdminEmployeesPage() {
                     <form action={toggleEmployeeActive} className="inline">
                       <input type="hidden" name="id" value={e._id.toString()} />
                       {e.active ? (
-                        <Button type="submit" variant="destructive" size="sm">
+                        <SubmitButton variant="destructive" size="sm">
                           Deactivate
-                        </Button>
+                        </SubmitButton>
                       ) : (
-                        <Button type="submit" size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700">
+                        <SubmitButton size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700">
                           Activate
-                        </Button>
+                        </SubmitButton>
                       )}
                     </form>
                   </TableCell>

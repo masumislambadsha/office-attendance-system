@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles, TriangleAlert } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 const DEMO_EMAIL = "demo.admin@demo.com";
 const DEMO_PASSWORD = "demo123456";
@@ -12,10 +13,11 @@ export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnable
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<"form" | "google" | "demo" | null>(null);
+  const busy = pending !== null;
   const [error, setError] = useState<string | null>(null);
 
-  const signInWith = async (em: string, pw: string) => {
+  const signInWith = async (source: "form" | "demo", em: string, pw: string) => {
     const address = em.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) {
       setError("Enter a valid email.");
@@ -25,7 +27,7 @@ export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnable
       setError("Enter your password.");
       return;
     }
-    setBusy(true);
+    setPending(source);
     setError(null);
     try {
       const res = await fetch("/api/auth/sign-in/email", {
@@ -40,17 +42,17 @@ export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnable
       router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-      setBusy(false);
+      setPending(null);
     }
   };
 
   const signIn = async (e: FormEvent) => {
     e.preventDefault();
-    await signInWith(email, password);
+    await signInWith("form", email, password);
   };
 
   const signInGoogle = async () => {
-    setBusy(true);
+    setPending("google");
     setError(null);
     try {
       const res = await fetch("/api/auth/sign-in/social", {
@@ -69,7 +71,7 @@ export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnable
       router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-      setBusy(false);
+      setPending(null);
     }
   };
 
@@ -148,7 +150,8 @@ export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnable
               className="group relative inline-flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-full bg-[#1a1a1a] px-6 py-3.5 text-sm font-medium text-warm-50 transition-all duration-300 hover:bg-[#2a2a2a] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-sage-400/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              {busy ? "Signing in..." : "Sign In"}
+              {pending === "form" && <Spinner size="sm" className="mr-2" />}
+              {pending === "form" ? "Signing in…" : "Sign In"}
               {!busy && <ArrowRight className="ml-2 h-4 w-4" />}
             </button>
           </form>
@@ -167,9 +170,13 @@ export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnable
                 type="button"
                 onClick={() => void signInGoogle()}
                 disabled={busy}
+                aria-busy={pending === "google" || undefined}
                 className="mt-6 inline-flex w-full cursor-pointer items-center justify-center gap-3 rounded-full border-2 border-warm-200 bg-white py-3 font-medium text-[#1a1a1a] transition-all duration-300 hover:border-sage-300 active:scale-[0.98] disabled:opacity-50"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24">
+                {pending === "google" ? (
+                  <Spinner size="sm" className="text-sage-600" />
+                ) : (
+                  <svg className="h-5 w-5" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -187,6 +194,7 @@ export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnable
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
+                )}
                 Continue with Google
               </button>
             </div>
@@ -202,9 +210,11 @@ export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnable
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void signInWith(DEMO_EMAIL, DEMO_PASSWORD)}
+                onClick={() => void signInWith("demo", DEMO_EMAIL, DEMO_PASSWORD)}
+                aria-busy={pending === "demo" || undefined}
                 className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-sage-600 px-5 py-2.5 text-xs font-semibold text-white transition-all duration-300 hover:bg-sage-700 active:scale-[0.98] disabled:opacity-50"
               >
+                {pending === "demo" && <Spinner size="sm" />}
                 Sign in as {DEMO_EMAIL}
               </button>
             </div>

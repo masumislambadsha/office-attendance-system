@@ -2,7 +2,7 @@ import { collections } from "@/lib/mongo";
 import { setDeviceStatus } from "@/actions/admin";
 import { ErrorBanner } from "@/components/ui";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
@@ -69,18 +69,18 @@ export default async function AdminDevicesPage({ searchParams }: Props) {
                       <form action={setDeviceStatus} className="inline">
                         <input type="hidden" name="id" value={d._id.toString()} />
                         <input type="hidden" name="status" value="approved" />
-                        <Button type="submit" variant="ghost" size="sm" className="mr-1 font-semibold text-emerald-700">
+                        <SubmitButton variant="ghost" size="sm" className="mr-1 font-semibold text-emerald-700">
                           Approve
-                        </Button>
+                        </SubmitButton>
                       </form>
                     )}
                     {d.status !== "revoked" && (
                       <form action={setDeviceStatus} className="inline">
                         <input type="hidden" name="id" value={d._id.toString()} />
                         <input type="hidden" name="status" value="revoked" />
-                        <Button type="submit" variant="ghost" size="sm" className="text-destructive">
+                        <SubmitButton variant="ghost" size="sm" className="text-destructive">
                           Revoke
-                        </Button>
+                        </SubmitButton>
                       </form>
                     )}
                   </TableCell>

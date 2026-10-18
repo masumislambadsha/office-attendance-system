@@ -3,7 +3,7 @@ import { requireEmployee } from "@/auth";
 import { getAllLeaveTypes, availableBalance } from "@/attend/leave";
 import { nowDateKey } from "@/attend/service";
 import { Card, CardContent, CardHeader, CardTitle, ErrorBanner } from "@/components/ui";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { LeaveRequestForm } from "@/components/LeaveRequestForm";
 import { cancelMyLeave } from "@/actions/leave";
 import { cn } from "cn";
@@ -96,9 +96,9 @@ export default async function MyLeavePage({ searchParams }: Props) {
                 {r.status === "pending" && (
                   <form action={cancelMyLeave}>
                     <input type="hidden" name="id" value={r._id.toString()} />
-                    <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground">
+                    <SubmitButton variant="ghost" size="sm" className="text-muted-foreground">
                       Cancel
-                    </Button>
+                    </SubmitButton>
                   </form>
                 )}
               </div>

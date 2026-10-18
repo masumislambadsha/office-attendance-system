@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "cn";
+import { Spinner } from "@/components/ui/spinner";
 
 type NavItem = {
   icon: LucideIcon;
@@ -64,6 +65,7 @@ export function DashboardShell({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     // Intentional mount gate: avoids hydration mismatch on sidebar state.
@@ -76,6 +78,7 @@ export function DashboardShell({
   const initial = (user.name ?? user.email).charAt(0).toUpperCase();
 
   const signOut = async () => {
+    setSigningOut(true);
     try {
       await fetch("/api/auth/sign-out", { method: "POST" });
     } finally {
@@ -86,10 +89,10 @@ export function DashboardShell({
   if (!mounted) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-warm-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-sage-600 border-t-transparent" />
-          <p className="text-sm font-medium text-warm-700">Loading...</p>
-        </div>
+<div className="flex flex-col items-center gap-4">
+            <Spinner size="lg" className="text-sage-600" label="Loading" />
+            <p className="text-sm font-medium text-warm-700">Loading...</p>
+          </div>
       </div>
     );
   }
@@ -174,14 +177,20 @@ export function DashboardShell({
           </div>
           <button
             onClick={() => void signOut()}
+            disabled={signingOut}
+            aria-busy={signingOut || undefined}
             title={!open ? "Sign out" : ""}
             className={cn(
-              "flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-warm-300 transition-all hover:bg-red-500/10 hover:text-red-400",
+              "flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-warm-300 transition-all hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-60",
               !open && "justify-center",
             )}
           >
-            <LogOut className="h-5 w-5 shrink-0" />
-            {open && <span className="text-sm font-medium">Sign out</span>}
+            {signingOut ? (
+              <Spinner size="sm" className="shrink-0" />
+            ) : (
+              <LogOut className="h-5 w-5 shrink-0" />
+            )}
+            {open && <span className="text-sm font-medium">{signingOut ? "Signing out…" : "Sign out"}</span>}
           </button>
         </div>
       </aside>
@@ -217,9 +226,11 @@ export function DashboardShell({
             </span>
             <button
               onClick={() => void signOut()}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-warm-100 px-4 py-2 text-sm font-medium text-warm-700 transition-colors hover:bg-red-50 hover:text-red-600"
+              disabled={signingOut}
+              aria-busy={signingOut || undefined}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-warm-100 px-4 py-2 text-sm font-medium text-warm-700 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <LogOut className="h-4 w-4" />
+              {signingOut ? <Spinner size="sm" /> : <LogOut className="h-4 w-4" />}
               <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>

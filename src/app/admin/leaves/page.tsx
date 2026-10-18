@@ -2,7 +2,7 @@ import { collections } from "@/lib/mongo";
 import { decideLeave } from "@/actions/leave";
 import { ErrorBanner } from "@/components/ui";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
@@ -61,16 +61,16 @@ export default async function AdminLeavesPage({ searchParams }: Props) {
                 <form action={decideLeave}>
                   <input type="hidden" name="id" value={r._id.toString()} />
                   <input type="hidden" name="action" value="approved" />
-                  <Button type="submit" size="sm">
+                  <SubmitButton size="sm">
                     Approve
-                  </Button>
+                  </SubmitButton>
                 </form>
                 <form action={decideLeave}>
                   <input type="hidden" name="id" value={r._id.toString()} />
                   <input type="hidden" name="action" value="rejected" />
-                  <Button type="submit" size="sm" variant="destructive">
+                  <SubmitButton size="sm" variant="destructive">
                     Reject
-                  </Button>
+                  </SubmitButton>
                 </form>
               </div>
             </div>

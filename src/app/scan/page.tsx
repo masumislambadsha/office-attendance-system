@@ -186,10 +186,11 @@ export default function ScanPage() {
         <div className="mt-3 flex justify-center">
           <Button
             type="button"
-            disabled={deviceState !== "approved" || busy}
+            loading={busy}
+            disabled={deviceState !== "approved"}
             onClick={() => void startScanner()}
           >
-            {busy ? "Recording…" : result ? "Scan again" : "Start camera"}
+            {result ? "Scan again" : "Start camera"}
           </Button>
         </div>
 

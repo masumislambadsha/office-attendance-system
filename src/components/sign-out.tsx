@@ -14,7 +14,7 @@ export function SignOutButton() {
       type="button"
       variant="ghost"
       size="sm"
-      disabled={busy}
+      loading={busy}
       onClick={async () => {
         setBusy(true);
         try {
@@ -24,8 +24,12 @@ export function SignOutButton() {
         }
       }}
     >
-      <LogOut />
-      {busy ? "Signing out…" : "Sign out"}
+      {busy ? "Signing out…" : (
+        <>
+          <LogOut />
+          Sign out
+        </>
+      )}
     </Button>
   );
 }

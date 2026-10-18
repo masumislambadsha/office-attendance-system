@@ -4,6 +4,7 @@ import {
   Button as HeroButton,
 } from "@heroui/react"
 import { cn } from "cn"
+import { Spinner } from "@/components/ui/spinner"
 
 const VARIANT_MAP = {
   default: "primary",
@@ -40,14 +41,25 @@ type ButtonProps = Omit<HeroButtonProps, "variant" | "size"> & {
   size?: ButtonSize
   fullWidth?: boolean
   disabled?: boolean
+  /** Shows a spinner, marks the button busy, and blocks interaction while true. */
+  loading?: boolean
   className?: string
 }
 
+const SPINNER_SIZE_MAP = {
+  xs: "xs",
+  sm: "xs",
+  md: "sm",
+  lg: "md",
+} as const
+
 function resolveSize(size: ButtonSize, variant: ButtonVariant) {
   const isIcon = size.startsWith("icon")
+  const heroSize = isIcon ? ("md" as const) : (SIZE_MAP[size as keyof typeof SIZE_MAP] ?? "md")
   return {
     isIcon,
-    heroSize: isIcon ? ("md" as const) : (SIZE_MAP[size as keyof typeof SIZE_MAP] ?? "md"),
+    heroSize,
+    spinnerSize: isIcon ? ("sm" as const) : SPINNER_SIZE_MAP[heroSize],
     extra: cn(
       variant === "link" && LINK_CLASSES,
       size === "xs" && "h-7 px-3 text-xs",
@@ -62,9 +74,23 @@ function Button({
   size = "default",
   fullWidth,
   disabled,
+  loading = false,
+  children,
   ...props
 }: ButtonProps) {
-  const { isIcon, heroSize, extra } = resolveSize(size, variant)
+  const { isIcon, heroSize, spinnerSize, extra } = resolveSize(size, variant)
+  // HeroUI also types children as a render-function; every call site here passes
+  // plain nodes, so narrow it once. Keep idle children a single child (not an
+  // array) so React Aria can still derive the accessible name from them.
+  const nodes = children as React.ReactNode
+  const content = loading
+    ? (
+        <>
+          <Spinner size={spinnerSize} />
+          {isIcon ? null : nodes}
+        </>
+      )
+    : nodes
   return (
     <HeroButton
       className={cn(extra, className)}
@@ -72,9 +98,12 @@ function Button({
       size={heroSize}
       isIconOnly={isIcon || undefined}
       fullWidth={fullWidth}
-      isDisabled={disabled}
+      isDisabled={loading || disabled}
+      aria-busy={loading || undefined}
       {...props}
-    />
+    >
+      {content}
+    </HeroButton>
   )
 }
 
@@ -83,11 +112,7 @@ function buttonVariants({
   variant = "default",
   size = "default",
   ...opts
-}: {
-  className?: string
-  variant?: ButtonVariant
-  size?: ButtonSize
-} & Record<string, unknown> = {}): string {
+}: ButtonProps): string {
   const { isIcon, heroSize, extra } = resolveSize(size, variant)
   return String(
     heroButtonVariants({
@@ -101,3 +126,4 @@ function buttonVariants({
 }
 
 export { Button, buttonVariants }
+export type { ButtonProps }

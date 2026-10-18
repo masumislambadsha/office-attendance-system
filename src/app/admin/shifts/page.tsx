@@ -3,7 +3,7 @@ import { collections } from "@/lib/mongo";
 import { saveShift } from "@/actions/admin";
 import { ErrorBanner } from "@/components/ui";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberFieldField } from "@/components/ui/number-field";
@@ -124,7 +124,7 @@ export default async function AdminShiftsPage({ searchParams }: Props) {
             </div>
 
             <div className="sm:col-span-2 lg:col-span-3">
-              <Button type="submit">{editing ? "Save changes" : "Save shift"}</Button>
+              <SubmitButton>{editing ? "Save changes" : "Save shift"}</SubmitButton>
             </div>
           </form>
         </CardContent>
