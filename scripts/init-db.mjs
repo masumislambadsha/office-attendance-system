@@ -30,6 +30,11 @@ async function ensureIndexes() {
     // Single-use QR tokens: unique jti + 15-minute TTL auto-purge.
     db.collection("used_tokens").createIndex({ jti: 1 }, { unique: true }),
     db.collection("used_tokens").createIndex({ createdAt: 1 }, { expireAfterSeconds: 900 }),
+    // WebAuthn (phone fingerprint) credentials: one row per enrolled phone.
+    db.collection("webauthn_credentials").createIndex({ credential_id: 1 }, { unique: true }),
+    db.collection("webauthn_credentials").createIndex({ employee_id: 1, device_token: 1 }),
+    // Pending WebAuthn challenges: single-use, auto-purged after 5 minutes.
+    db.collection("webauthn_challenges").createIndex({ createdAt: 1 }, { expireAfterSeconds: 300 }),
     // Per-device rate limit: TTL 60s, key unique (_id).
     db.collection("rate_limits").createIndex({ createdAt: 1 }, { expireAfterSeconds: 60 }),
   ];

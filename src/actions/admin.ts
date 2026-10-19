@@ -34,6 +34,8 @@ export async function saveEmployee(formData: FormData): Promise<void> {
     joined_at: String(formData.get("joined_at") ?? ""),
     monthly_gross: Number(formData.get("monthly_gross") ?? 0),
     active: formData.get("active") === "on",
+    // Opt-out of the fingerprint check-in factor (phone without a sensor).
+    biometric_exempt: formData.get("biometric_exempt") === "on",
   };
   if (!payload.name || !payload.email || !payload.shift_id || !/^\d{4}-\d{2}-\d{2}$/.test(payload.joined_at)) {
     return fail("/admin/employees", "name, email, shift and join date are required");
@@ -49,7 +51,13 @@ export async function saveEmployee(formData: FormData): Promise<void> {
   if (id) {
     const existing = await collections().employees.findOne({ _id: new ObjectId(id) });
     if (!existing) return fail("/admin/employees", "employee not found");
-    const prev = { name: existing.name, email: existing.email, shift_id: existing.shift_id, active: existing.active };
+    const prev = {
+      name: existing.name,
+      email: existing.email,
+      shift_id: existing.shift_id,
+      active: existing.active,
+      biometric_exempt: existing.biometric_exempt ?? false,
+    };
     try {
       await collections().employees.updateOne(
         { _id: new ObjectId(id) },
@@ -262,6 +270,29 @@ async function assertMonthsOpen(days: string[]): Promise<void> {
       fail("/admin/sheet", `month ${month} is closed — reopen it before correcting`);
     }
   }
+}
+
+/**
+ * Drop the fingerprints enrolled on one device. The employee can enrol again
+ * on the same phone; the old public keys stop working immediately.
+ */
+export async function revokeWebAuthnCredentials(formData: FormData): Promise<void> {
+  const actor = await requireAdmin();
+  const deviceId = String(formData.get("device_id") ?? "");
+  if (!ObjectId.isValid(deviceId)) return fail("/admin/devices", "bad device");
+  const device = await collections().devices.findOne({ _id: new ObjectId(deviceId) });
+  if (!device) return fail("/admin/devices", "device not found");
+
+  const removed = await collections().webauthnCredentials.deleteMany({ device_token: device.device_token });
+  await writeAudit({
+    actor: actor.email,
+    action: "webauthn.revoke",
+    entity: `devices:${deviceId}`,
+    old: { fingerprint_count: removed.deletedCount },
+    new: { fingerprint_count: 0 },
+    reason: String(formData.get("reason") ?? "fingerprint revoked by admin").trim() || undefined,
+  });
+  revalidatePath("/admin/devices");
 }
 
 export async function manualCorrect(formData: FormData): Promise<void> {

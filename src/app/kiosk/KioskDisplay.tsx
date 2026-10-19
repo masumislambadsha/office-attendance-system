@@ -8,6 +8,7 @@ const REFRESH_MS = 30_000;
 export default function KioskDisplay() {
   const [qr, setQr] = useState<string | null>(null);
   const [expiresIn, setExpiresIn] = useState<number>(REFRESH_MS / 1000);
+  const [staticMode, setStaticMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,11 +40,17 @@ export default function KioskDisplay() {
           return;
         }
         if (!res.ok) throw new Error("could not reach token service");
-        const data = (await res.json()) as { qr: string; expiresAt: string };
+        const data = (await res.json()) as { qr: string; expiresAt: string | null };
         if (!alive) return;
         setQr(data.qr);
-        const expiry = new Date(data.expiresAt).getTime();
-        setExpiresIn(Math.max(1, Math.round((expiry - Date.now()) / 1000)));
+        if (data.expiresAt) {
+          setStaticMode(false);
+          const expiry = new Date(data.expiresAt).getTime();
+          setExpiresIn(Math.max(1, Math.round((expiry - Date.now()) / 1000)));
+        } else {
+          // Static mode: one fixed code, no countdown.
+          setStaticMode(true);
+        }
         setError(null);
       } catch {
         if (alive) setError("Kiosk offline — showing last QR");
@@ -67,7 +74,9 @@ export default function KioskDisplay() {
           Scan to check in / out
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Code refreshes every {REFRESH_MS / 1000}s — sharing a photo will not work.
+          {staticMode
+            ? "Fixed code — the same code every day."
+            : `Code refreshes every ${REFRESH_MS / 1000}s — sharing a photo will not work.`}
         </p>
       </div>
 
@@ -79,17 +88,19 @@ export default function KioskDisplay() {
             {error ?? "Loading…"}
           </div>
         )}
-        <div className="absolute inset-x-0 bottom-0 flex justify-center translate-y-1/2">
-          <span
-            className={cn(
-              "inline-flex items-center rounded-full bg-[#1a1a1a] px-4 py-1.5 text-xs font-semibold text-warm-50",
-              expiresIn <= 10 && "bg-amber-500",
-            )}
-            aria-live="polite"
-          >
-            QR expires in {expiresIn}s
-          </span>
-        </div>
+        {!staticMode && (
+          <div className="absolute inset-x-0 bottom-0 flex justify-center translate-y-1/2">
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full bg-[#1a1a1a] px-4 py-1.5 text-xs font-semibold text-warm-50",
+                expiresIn <= 10 && "bg-amber-500",
+              )}
+              aria-live="polite"
+            >
+              QR expires in {expiresIn}s
+            </span>
+          </div>
+        )}
       </div>
 
       {error && <p className="text-sm font-medium text-amber-700">{error}</p>}

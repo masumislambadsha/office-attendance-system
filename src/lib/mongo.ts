@@ -17,6 +17,8 @@ import {
   Shift,
   ShiftOverride,
   UsedToken,
+  WebAuthnChallenge,
+  WebAuthnCredential,
 } from "@/attend/types";
 
 const uri = process.env.MONGODB_URI ?? "";
@@ -56,6 +58,8 @@ export interface Collections {
   payrollCloses: Collection<PayrollClose>;
   auditLog: Collection<AuditLog>;
   usedTokens: Collection<UsedToken>;
+  webauthnCredentials: Collection<WebAuthnCredential>;
+  webauthnChallenges: Collection<WebAuthnChallenge>;
   jobRuns: Collection<JobRun>;
   rateLimits: Collection<RateLimitDoc>;
 }
@@ -78,6 +82,8 @@ export function collections(dbOverride?: Db): Collections {
     payrollCloses: d.collection<PayrollClose>("payroll_closes"),
     auditLog: d.collection<AuditLog>("audit_log"),
     usedTokens: d.collection<UsedToken>("used_tokens"),
+    webauthnCredentials: d.collection<WebAuthnCredential>("webauthn_credentials"),
+    webauthnChallenges: d.collection<WebAuthnChallenge>("webauthn_challenges"),
     jobRuns: d.collection<JobRun>("job_runs"),
     rateLimits: d.collection<RateLimitDoc>("rate_limits"),
   };

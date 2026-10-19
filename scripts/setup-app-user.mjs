@@ -41,6 +41,7 @@ const APP_COLLECTIONS = [
   "daily_status", "leave_types", "leave_balances", "leave_requests",
   "deduction_rules", "payroll_adjustments", "payroll_closes",
   "used_tokens", "job_runs", "rate_limits",
+  "webauthn_credentials", "webauthn_challenges",
   "user", "session", "account", "verification",
 ];
 

@@ -17,6 +17,7 @@ import {
   Menu,
   History,
   Building2,
+  QrCode,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "cn";
@@ -41,6 +42,7 @@ const ADMIN_NAV: NavItem[] = [
   { icon: Clock, label: "Shifts", href: "/admin/shifts" },
   { icon: CalendarDays, label: "Holidays", href: "/admin/holidays" },
   { icon: Smartphone, label: "Devices", href: "/admin/devices" },
+  { icon: QrCode, label: "Office QR", href: "/admin/qr" },
   { icon: Inbox, label: "Leaves", href: "/admin/leaves" },
   { icon: Lock, label: "Monthly close", href: "/admin/close" },
   { icon: Table2, label: "Monthly sheet", href: "/admin/sheet" },

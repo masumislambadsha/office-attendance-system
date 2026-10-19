@@ -33,6 +33,14 @@ export type LeaveRequestStatus = "pending" | "approved" | "rejected" | "cancelle
 export type DeviceStatus = "pending" | "approved" | "revoked";
 export type OversightFlag = "early_exit" | "missing_checkout";
 
+/**
+ * How hard the biometric (phone fingerprint) factor is pushed.
+ * - off      — never ask.
+ * - optional — ask when the device has an enrolled fingerprint.
+ * - required — every employee must enrol and confirm.
+ */
+export type BiometricPolicy = "off" | "optional" | "required";
+
 export interface Employee {
   _id: ObjectId;
   name: string;
@@ -42,6 +50,8 @@ export interface Employee {
   joined_at: string; // yyyy-MM-dd
   active: boolean;
   monthly_gross: number;
+  /** Opted out of the biometric check-in factor (phone without a sensor). */
+  biometric_exempt?: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -182,6 +192,37 @@ export interface AuditLog {
 export interface UsedToken {
   _id: ObjectId;
   jti: string;
+  createdAt: Date;
+}
+
+/**
+ * A WebAuthn credential (the phone's own fingerprint / face sensor) enrolled by
+ * one employee on one approved device. The credential id is the public handle
+ * the authenticator signs with; the public key is stored base64url-encoded.
+ */
+export interface WebAuthnCredential {
+  _id: ObjectId;
+  employee_id: ObjectId;
+  /** The approved device this credential was enrolled on — a credential never
+   *  works from a device the employee is not bound to. */
+  device_token: string;
+  credential_id: string; // base64url
+  public_key: string; // base64url (COSE)
+  counter: number;
+  transports: string[];
+  device_type: "singleDevice" | "multiDevice" | null;
+  created_at: Date;
+  last_used_at: Date | null;
+}
+
+/** A single-use WebAuthn challenge, pending verification. */
+export interface WebAuthnChallenge {
+  _id: string; // base64url challenge
+  employee_id: ObjectId;
+  device_token: string;
+  kind: "registration" | "authentication";
+  /** The QR token jti this challenge is bound to (dynamic QR only). */
+  qr_jti: string | null;
   createdAt: Date;
 }
 

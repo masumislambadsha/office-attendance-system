@@ -13,6 +13,8 @@
     "@heroui/react": "^3.2.6",
     "@heroui/styles": "^3.2.6",
     "@internationalized/date": "^3.12.4",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.3",
     "better-auth": "^1.7.5",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",

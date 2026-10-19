@@ -41,15 +41,26 @@ This creates a custom role: full find/insert/update/remove on every app collecti
 | `scripts/seed-passwords.mjs` | Login credentials for the seeded emails (requires `DEMO_PASSWORD`) |
 | `scripts/setup-app-user.mjs` | Least-privilege app DB user + append-only audit lock |
 | `scripts/test-status.ts` | Pure-engine boundary tests (`node scripts/test-status.ts`; no npm wiring) |
+| `scripts/test-webauthn.ts` | Biometric-factor rules (`node scripts/test-webauthn.ts`) |
 
 ## How attendance works
 
-- **Statuses** (`src/attend/status.ts`): manual > holiday > weekly off > approved leave > absent > present/late/half-day. Shifts may cross midnight; the working date of a scan is anchored by an overnight cutoff (`workingDateForScan` in `src/lib/time.ts`).
-- **Materialization** (`src/attend/service.ts`): a `daily_status` row is upserted per employee/day (with scans, leave metadata, `late_min`). Cron materializes the previous day; admin actions re-materialize days they change. Manual rows are never overwritten by automated runs.
+- **Statuses** (`src/attend/status.ts`): manual > holiday > weekly off > approved leave > future day (undecided, never absent) > absent > present/late/half-day. Shifts may cross midnight; the working date of a scan is anchored by an overnight cutoff (`workingDateForScan` in `src/lib/time.ts`).
+- **Materialization** (`src/attend/service.ts`): a `daily_status` row is upserted per employee/day (with scans, leave metadata, `late_min`). Cron materializes the previous day; admin actions re-materialize days they change. Manual rows are never overwritten by automated runs, and days that have not happened yet are never written.
 - **Check-in** (`src/app/api/check-in/route.ts`): single-use HMAC-signed QR tokens (~45s) minted by the kiosk; geofence + rate limits enforced; replay is deduped via `used_tokens`.
+- **Factors** (`src/attend/biometric.ts`): session → QR → approved device → geofence → phone fingerprint. The last one is a WebAuthn platform credential (the phone's own sensor) verified server-side with `@simplewebauthn/server`; the credential is bound to the approved device, and the assertion must answer a challenge issued for that employee, that device and that QR token.
 - **Leave** (`src/attend/leave.ts`): balances per leave type; requests validated for overlap + same-year range; admin approve/cancel/reject updates balances atomically; earned accrual is idempotent and recomputed year-to-date.
 - **Payroll** (`src/attend/payroll.ts`): monthly sheet (`/admin/sheet`, CSV export) with deduction days from configurable rules; `/admin/close` freezes a month — closed months can't be edited.
 - **Cron**: `POST/GET /api/cron/daily-status` (Vercel cron at 00:00 Dhaka, `0 18 * * *` UTC) requires `CRON_SECRET` and backfills up to 31 missing days per employee.
+
+## Check-in modes
+
+| Mode | Env | What it means |
+| --- | --- | --- |
+| Rotating QR | `QR_MODE=dynamic` (default) | The kiosk mints a fresh 45s code every 30s. Proves presence at the entrance, but needs a device left switched on at the door. |
+| Fixed code | `QR_MODE=static` | One signed site code, printed from `/admin/qr` and posted at the door. Needs no always-on device — but it proves nothing about presence, so the device, geofence and fingerprint factors carry that weight. Bump `STATIC_QR_VERSION` to kill every printed copy. |
+
+The fingerprint factor is switched on with `BIOMETRIC_POLICY=off|optional|required` (see `.env.example`). Individual employees can be exempted on the employee form. Enrolment happens on the employee's own phone, on `/scan`, once an admin has approved that device.
 
 ## Notes
 

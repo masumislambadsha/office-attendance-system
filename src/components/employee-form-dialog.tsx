@@ -39,6 +39,7 @@ type Employee = {
   joined_at: string;
   monthly_gross: number;
   active: boolean;
+  biometric_exempt?: boolean;
 };
 
 type Shift = { _id: string; name: string };
@@ -182,6 +183,25 @@ export function EmployeeFormDialog({ employees, shifts }: { employees: Employee[
               </Checkbox.Content>
             </Checkbox>
 
+          </div>
+
+          <div className="sm:col-span-2">
+            <Label id="emp-biometric-label" className="text-xs text-muted-foreground">
+              Fingerprint check
+            </Label>
+            <Checkbox
+              name="biometric_exempt"
+              defaultSelected={editing?.biometric_exempt ?? false}
+              className="mt-1.5 text-sm"
+              aria-labelledby="emp-biometric-label"
+            >
+              <Checkbox.Content>
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                Exempt — check in without a fingerprint (phone has no sensor)
+              </Checkbox.Content>
+            </Checkbox>
           </div>
 
           <DialogFooter className="sm:col-span-2">
