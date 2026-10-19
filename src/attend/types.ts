@@ -9,7 +9,9 @@ export type DayStatus =
   | "absent"
   | "leave"
   | "weekend"
-  | "holiday";
+  | "holiday"
+  /** Day has not happened yet and is a scheduled working day — undecided, not absent. */
+  | "upcoming";
 
 export const DAY_STATUSES: DayStatus[] = [
   "present",
@@ -19,7 +21,13 @@ export const DAY_STATUSES: DayStatus[] = [
   "leave",
   "weekend",
   "holiday",
+  "upcoming",
 ];
+
+/** Statuses an admin may pick when overriding a day (the calendar/undecided ones are not choices). */
+export const CORRECTABLE_STATUSES: DayStatus[] = DAY_STATUSES.filter(
+  (s) => s !== "weekend" && s !== "holiday" && s !== "upcoming",
+);
 
 export type LeaveRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
 export type DeviceStatus = "pending" | "approved" | "revoked";

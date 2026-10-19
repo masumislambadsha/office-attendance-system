@@ -7,7 +7,7 @@ import { collections } from "@/lib/mongo";
 import { requireAdmin } from "@/auth";
 import { writeAudit } from "@/actions/audit";
 import { monthOf, rangeKeys } from "@/lib/time";
-import { DAY_STATUSES, DayStatus } from "@/attend/types";
+import { CORRECTABLE_STATUSES, DayStatus } from "@/attend/types";
 import { closeMonth, reopenMonth } from "@/attend/payroll";
 import { computeDay, materializeDay } from "@/attend/service";
 
@@ -271,7 +271,7 @@ export async function manualCorrect(formData: FormData): Promise<void> {
   const reason = String(formData.get("reason") ?? "").trim();
 
   if (!ObjectId.isValid(employeeId)) return fail("/admin/sheet", "bad input");
-  if (!DAY_STATUSES.includes(status)) return fail("/admin/sheet", "bad status");
+  if (!CORRECTABLE_STATUSES.includes(status)) return fail("/admin/sheet", "bad status");
   if (!reason) return fail("/admin/sheet", "a reason is mandatory for corrections");
 
   const { from, to, days } = parseRange(formData);

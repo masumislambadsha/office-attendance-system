@@ -4,8 +4,8 @@
  * midnight; weekday uses JS convention (0=Sun..6=Sat; BD: 0=Sun, 5=Fri).
  *
  * Resolution priority (strict): manual override > holiday > weekly off >
- * approved leave > half-day leave without a scan > missing check-in (absent) >
- * timing (present/late/half-day).
+ * approved leave > half-day leave without a scan > future day (undecided, not
+ * absent) > missing check-in (absent) > timing (present/late/half-day).
  */
 
 export type DayStatus =
@@ -15,7 +15,8 @@ export type DayStatus =
   | "absent"
   | "leave"
   | "weekend"
-  | "holiday";
+  | "holiday"
+  | "upcoming";
 
 export type OversightFlag = "early_exit" | "missing_checkout" | null;
 
@@ -38,6 +39,8 @@ export interface DayInput {
   checkOutMin: number | null; // last scan today (if any)
   shift: ShiftTiming | null;
   manualStatus?: DayStatus | null;
+  /** The date is after today: the roster is known, the attendance is not. */
+  isFuture?: boolean;
 }
 
 export interface DayOutput {
@@ -84,6 +87,13 @@ export function resolveDayStatus(input: DayInput): DayOutput {
   if (input.isApprovedLeave) return { status: "leave", lateMin: 0, flag: null };
   if (input.isHalfDayLeave && input.checkInMin === null) {
     return { status: "leave", lateMin: 0, flag: null };
+  }
+
+  // The day has not happened yet, so there is no attendance to judge. Holidays,
+  // weekly off and booked leave above are already known, so they still show as
+  // such; everything else is simply undecided — never an absence.
+  if (input.isFuture) {
+    return { status: "upcoming", lateMin: 0, flag: null };
   }
 
   if (input.checkInMin === null) {

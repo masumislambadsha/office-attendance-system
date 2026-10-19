@@ -75,6 +75,17 @@ eq("holiday beats half-day leave", resolveDayStatus(day({ isHoliday: true, isHal
 eq("weekend beats half-day leave", resolveDayStatus(day({ weekday: 5, isWeeklyOff: true, isHalfDayLeave: true })).status, "weekend");
 eq("manual beats half-day leave", resolveDayStatus(day({ isHalfDayLeave: true, manualStatus: "present" })).status, "present");
 
+console.log("§5 — future days are undecided, never absent");
+eq("future working day with no scan -> upcoming", resolveDayStatus(day({ isFuture: true })).status, "upcoming");
+eq("future day lateMin is 0", resolveDayStatus(day({ isFuture: true })).lateMin, 0);
+eq("future day has no flag", resolveDayStatus(day({ isFuture: true })).flag, null);
+eq("future holiday stays holiday", resolveDayStatus(day({ isFuture: true, isHoliday: true })).status, "holiday");
+eq("future weekly off stays weekend", resolveDayStatus(day({ isFuture: true, weekday: 5, isWeeklyOff: true })).status, "weekend");
+eq("future approved leave stays leave", resolveDayStatus(day({ isFuture: true, isApprovedLeave: true })).status, "leave");
+eq("future half-day leave without scan stays leave", resolveDayStatus(day({ isFuture: true, isHalfDayLeave: true })).status, "leave");
+eq("future day with manual override wins", resolveDayStatus(day({ isFuture: true, manualStatus: "present" })).status, "present");
+eq("past day with no scan is still absent", resolveDayStatus(day()).status, "absent");
+
 console.log("§5 — night shift (22:00->06:00) helpers + status");
 eq("22:00->06:00 detected as overnight", isOvernightShift(22 * 60, 6 * 60), true);
 eq("09:00->18:00 not overnight", isOvernightShift(9 * 60, 18 * 60), false);

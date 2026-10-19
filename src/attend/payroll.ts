@@ -168,6 +168,9 @@ export async function closeMonth(month: string, actorEmail: string): Promise<{ o
     const days = await computeDays(emp, dateList);
     for (const day of days) {
       if (emp.joined_at && day.date < emp.joined_at) continue;
+      // Closing an in-progress month must not bill days that have not happened:
+      // they are neither worked days nor deductions.
+      if (day.isFuture) continue;
       const isOff = emp.weekly_off.includes(weekdayOf(day.date)) || holidays.has(day.date);
       if (!isOff) counts.working_days++;
       const leavePaid = day.leaveTypeId ? paidTypes.paid.has(day.leaveTypeId) : false;

@@ -24,6 +24,7 @@ const STATUS_STYLES: Record<DayStatus, string> = {
   leave: "bg-sky-50 text-sky-700",
   weekend: "bg-warm-100 text-warm-600",
   holiday: "bg-violet-50 text-violet-700",
+  upcoming: "bg-warm-100 text-warm-500",
 };
 
 const STATUS_MEANING: Record<DayStatus, string> = {
@@ -34,6 +35,7 @@ const STATUS_MEANING: Record<DayStatus, string> = {
   leave: "Approved leave.",
   holiday: "Holiday.",
   weekend: "Weekly off.",
+  upcoming: "Not worked yet — this day is still in the future.",
 };
 
 export function StatusBadge({ status }: { status: DayStatus }) {

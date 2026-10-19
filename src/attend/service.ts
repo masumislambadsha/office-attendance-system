@@ -80,6 +80,8 @@ export interface ComputedDay {
   leaveHalfDay: boolean;
   lateMin: number;
   isManual: boolean;
+  /** Date is after today: the day has not happened yet, so nothing is decided. */
+  isFuture: boolean;
 }
 
 /** A covering approved request for the date; a full-day request wins over a half-day one. */
@@ -98,6 +100,7 @@ export async function computeDays(employee: Employee, dates: string[]): Promise<
   const sorted = [...dates].sort();
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
+  const today = nowDateKey();
 
   const [shiftDoc, overrides, holidays, leaves, manualRows, scans] = await Promise.all([
     collections().shifts.findOne({ _id: employee.shift_id }),
@@ -132,12 +135,14 @@ export async function computeDays(employee: Employee, dates: string[]): Promise<
         leaveHalfDay: false,
         lateMin: 0,
         isManual: !!manual,
+        isFuture: false,
       };
     }
 
     const override = overrides.find((o) => o.date_from <= date && o.date_to >= date) ?? null;
     const timing = shiftDoc ? shiftTiming(shiftDoc, override) : null;
     const leave = pickLeaveForDate(leaves, date);
+    const isFuture = date > today;
 
     const dayScans = timing
       ? scans.filter((s) => workingDateForScan(timing.startMin, timing.endMin, timing.overnight, s.ts) === date)
@@ -157,6 +162,7 @@ export async function computeDays(employee: Employee, dates: string[]): Promise<
       checkOutMin: lastScan && timing ? anchor(lastScan.ts) : null,
       shift: timing ? timing.timing : null,
       manualStatus: manual?.status ?? null,
+      isFuture,
     });
 
     return {
@@ -169,6 +175,7 @@ export async function computeDays(employee: Employee, dates: string[]): Promise<
       leaveHalfDay: !!leave?.half_day,
       lateMin: output.lateMin,
       isManual: !!manual,
+      isFuture,
     };
   });
 }
@@ -179,9 +186,9 @@ export async function computeDay(employee: Employee, date: string): Promise<Comp
   return day;
 }
 
-/** Upserts daily_status rows (idempotent on employee+date). Manual rows are never overwritten by the auto job. */
+/** Upserts daily_status rows (idempotent on employee+date). Manual rows are never overwritten by the auto job, and days that have not happened yet are never written. */
 export async function materializeDays(days: ComputedDay[]): Promise<void> {
-  const auto = days.filter((d) => !d.isManual);
+  const auto = days.filter((d) => !d.isManual && !d.isFuture);
   if (auto.length === 0) return;
   const now = new Date();
   await collections().dailyStatus.bulkWrite(
