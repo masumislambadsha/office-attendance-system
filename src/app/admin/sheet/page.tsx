@@ -4,7 +4,7 @@ import { clearManualOverride, manualCorrect } from "@/actions/admin";
 import { monthlySheet } from "@/attend/payroll";
 import { monthLabel } from "@/attend/leave";
 import { currentMonthKey, daysInMonth, rangeKeys } from "@/lib/time";
-import { DAY_STATUSES, DayStatus } from "@/attend/types";
+import { CORRECTABLE_STATUSES, DayStatus } from "@/attend/types";
 import { ErrorBanner } from "@/components/ui";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -95,40 +95,38 @@ export default async function AdminSheetPage({ searchParams }: Props) {
         </p>
       ) : (
         <Card className="mt-4">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Work</TableHead>
-                  <TableHead>P</TableHead>
-                  <TableHead>Late</TableHead>
-                  <TableHead>½</TableHead>
-                  <TableHead>Abs</TableHead>
-                  <TableHead>L(p)</TableHead>
-                  <TableHead>L(u)</TableHead>
-                  <TableHead>Ded days</TableHead>
-                  <TableHead className="text-right">Amount (BDT)</TableHead>
+          <Table maxHeight="max-h-[70vh]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Employee</TableHead>
+                <TableHead>Work</TableHead>
+                <TableHead>P</TableHead>
+                <TableHead>Late</TableHead>
+                <TableHead>½</TableHead>
+                <TableHead>Abs</TableHead>
+                <TableHead>L(p)</TableHead>
+                <TableHead>L(u)</TableHead>
+                <TableHead>Ded days</TableHead>
+                <TableHead className="text-right">Amount (BDT)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sheet.map((r) => (
+                <TableRow key={r.employee_id}>
+                  <TableCell className="font-medium">{r.name}</TableCell>
+                  <TableCell>{r.working_days}</TableCell>
+                  <TableCell className="font-semibold text-emerald-700">{r.present}</TableCell>
+                  <TableCell className="font-semibold text-amber-700">{r.late}</TableCell>
+                  <TableCell className="font-semibold text-orange-700">{r.half_days}</TableCell>
+                  <TableCell className="font-semibold text-red-700">{r.absents}</TableCell>
+                  <TableCell className="font-semibold text-sky-700">{r.leave_paid}</TableCell>
+                  <TableCell className="font-semibold text-violet-700">{r.leave_unpaid}</TableCell>
+                  <TableCell className="font-semibold">{r.deduction_days}</TableCell>
+                  <TableCell className="text-right font-semibold">{r.deduction_amount.toLocaleString()}</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sheet.map((r) => (
-                  <TableRow key={r.employee_id}>
-                    <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell>{r.working_days}</TableCell>
-                    <TableCell className="font-semibold text-emerald-700">{r.present}</TableCell>
-                    <TableCell className="font-semibold text-amber-700">{r.late}</TableCell>
-                    <TableCell className="font-semibold text-orange-700">{r.half_days}</TableCell>
-                    <TableCell className="font-semibold text-red-700">{r.absents}</TableCell>
-                    <TableCell className="font-semibold text-sky-700">{r.leave_paid}</TableCell>
-                    <TableCell className="font-semibold text-violet-700">{r.leave_unpaid}</TableCell>
-                    <TableCell className="font-semibold">{r.deduction_days}</TableCell>
-                    <TableCell className="text-right font-semibold">{r.deduction_amount.toLocaleString()}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+              ))}
+            </TableBody>
+          </Table>
           <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">
             {totalDays} calendar days · {holidayCount} holidays in month. Deduction days = absents +
             {halfMul} × half-days + {unpaidMul} × unpaid leave days + floor(lates / {latesPerAbsent});
@@ -163,7 +161,7 @@ export default async function AdminSheetPage({ searchParams }: Props) {
             <SelectField
               name="status"
               ariaLabel="Status"
-              options={DAY_STATUSES.filter((s) => s !== "weekend" && s !== "holiday").map((s: DayStatus) => ({
+              options={CORRECTABLE_STATUSES.map((s: DayStatus) => ({
                 value: s,
                 label: s.replace("_", " "),
               }))}

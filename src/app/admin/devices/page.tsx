@@ -34,68 +34,66 @@ export default async function AdminDevicesPage({ searchParams }: Props) {
       </p>
 
       <Card className="mt-4">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Token (short)</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Registered</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+        <Table maxHeight="max-h-[70vh]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Employee</TableHead>
+              <TableHead>Token (short)</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Registered</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {devices.map((d) => (
+              <TableRow key={d._id.toString()}>
+                <TableCell className="font-medium">{nameOf.get(d.employee_id.toString()) ?? "—"}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {d.device_token.slice(0, 12)}…
+                </TableCell>
+                <TableCell>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      STATUS_STYLES[d.status]
+                    }`}
+                  >
+                    {d.status}
+                  </span>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {d.created_at.toLocaleString("en-GB", { timeZone: "Asia/Dhaka" })}
+                </TableCell>
+                <TableCell className="text-right">
+                  {d.status !== "approved" && (
+                    <form action={setDeviceStatus} className="inline">
+                      <input type="hidden" name="id" value={d._id.toString()} />
+                      <input type="hidden" name="status" value="approved" />
+                      <SubmitButton variant="ghost" size="sm" className="mr-1 font-semibold text-emerald-700">
+                        Approve
+                      </SubmitButton>
+                    </form>
+                  )}
+                  {d.status !== "revoked" && (
+                    <form action={setDeviceStatus} className="inline">
+                      <input type="hidden" name="id" value={d._id.toString()} />
+                      <input type="hidden" name="status" value="revoked" />
+                      <SubmitButton variant="ghost" size="sm" className="text-destructive">
+                        Revoke
+                      </SubmitButton>
+                    </form>
+                  )}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {devices.map((d) => (
-                <TableRow key={d._id.toString()}>
-                  <TableCell className="font-medium">{nameOf.get(d.employee_id.toString()) ?? "—"}</TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {d.device_token.slice(0, 12)}…
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        STATUS_STYLES[d.status]
-                      }`}
-                    >
-                      {d.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {d.created_at.toLocaleString("en-GB", { timeZone: "Asia/Dhaka" })}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {d.status !== "approved" && (
-                      <form action={setDeviceStatus} className="inline">
-                        <input type="hidden" name="id" value={d._id.toString()} />
-                        <input type="hidden" name="status" value="approved" />
-                        <SubmitButton variant="ghost" size="sm" className="mr-1 font-semibold text-emerald-700">
-                          Approve
-                        </SubmitButton>
-                      </form>
-                    )}
-                    {d.status !== "revoked" && (
-                      <form action={setDeviceStatus} className="inline">
-                        <input type="hidden" name="id" value={d._id.toString()} />
-                        <input type="hidden" name="status" value="revoked" />
-                        <SubmitButton variant="ghost" size="sm" className="text-destructive">
-                          Revoke
-                        </SubmitButton>
-                      </form>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {devices.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
-                    No devices yet — they appear when someone scans on a new phone.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+            {devices.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
+                  No devices yet — they appear when someone scans on a new phone.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </Card>
     </div>
   );

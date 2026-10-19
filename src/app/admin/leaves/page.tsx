@@ -81,45 +81,43 @@ export default async function AdminLeavesPage({ searchParams }: Props) {
 
       <h2 className="mt-6 font-serif text-lg font-bold tracking-tight text-[#1a1a1a]">History ({history.length})</h2>
       <Card className="mt-2">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Dates</TableHead>
-                <TableHead>Days</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Submitted</TableHead>
+        <Table maxHeight="max-h-[70vh]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Employee</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Dates</TableHead>
+              <TableHead>Days</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Submitted</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {history.map((r) => (
+              <TableRow key={r._id.toString()}>
+                <TableCell className="font-medium">{nameOf.get(r.employee_id.toString()) ?? "?"}</TableCell>
+                <TableCell>{typeName.get(r.type_id) ?? r.type_id}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {r.from} → {r.to}
+                  {r.half_day ? " (½)" : ""}
+                </TableCell>
+                <TableCell>{r.requested_days}</TableCell>
+                <TableCell>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      STATUS_STYLES[r.status]
+                    }`}
+                  >
+                    {r.status}
+                  </span>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {r.created_at.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka" })}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {history.map((r) => (
-                <TableRow key={r._id.toString()}>
-                  <TableCell className="font-medium">{nameOf.get(r.employee_id.toString()) ?? "?"}</TableCell>
-                  <TableCell>{typeName.get(r.type_id) ?? r.type_id}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {r.from} → {r.to}
-                    {r.half_day ? " (½)" : ""}
-                  </TableCell>
-                  <TableCell>{r.requested_days}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        STATUS_STYLES[r.status]
-                      }`}
-                    >
-                      {r.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {r.created_at.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka" })}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       </Card>
     </div>
   );

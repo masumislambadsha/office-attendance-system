@@ -51,10 +51,20 @@ export default async function MyHistoryPage({ searchParams }: Props) {
   const keys = rangeKeys(`${month}-01`, `${month}-${String(totalDays).padStart(2, "0")}`);
   const days = await computeDays(employee, keys);
 
-  // Summary counts for the month.
+  // Calendar facts (holiday/weekend/booked leave) are known ahead of time, so
+  // they count for the whole month; labour outcomes only count once a day has
+  // elapsed — a future day must never read as absent.
+  const elapsed = days.filter((d) => !d.isFuture);
   const counts: Record<string, number> = {};
-  for (const d of days) counts[d.output.status] = (counts[d.output.status] ?? 0) + 1;
-  const withLateMin = days.filter((d) => d.lateMin > 0 && d.checkOutAt).length;
+  for (const d of days) {
+    if (d.isFuture && !["holiday", "weekend", "leave"].includes(d.output.status)) continue;
+    counts[d.output.status] = (counts[d.output.status] ?? 0) + 1;
+  }
+  const withLateMin = elapsed.filter((d) => d.lateMin > 0 && d.checkOutAt).length;
+  const upcoming = days.filter((d) => d.output.status === "upcoming").length;
+  const offDaysOverridden = elapsed.filter(
+    (d) => d.isManual && employee.weekly_off.includes(weekdayOf(d.date)) && d.output.status !== "weekend",
+  );
 
   return (
     <div>
@@ -110,70 +120,79 @@ export default async function MyHistoryPage({ searchParams }: Props) {
           {counts["weekend"] ?? 0} weekend
         </span>
         <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">{withLateMin} with late minutes</span>
+        {upcoming > 0 && (
+          <span className="rounded-full bg-warm-100 px-2.5 py-1 text-warm-600">{upcoming} not worked yet</span>
+        )}
+        {offDaysOverridden.length > 0 && (
+          <span
+            title="Weekly-off days that a manual correction overrode — these are counted as worked days"
+            className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700"
+          >
+            {offDaysOverridden.length} weekly off marked worked
+          </span>
+        )}
       </div>
 
       <Card className="mt-4">
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Day</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>In</TableHead>
-                  <TableHead>Out</TableHead>
-                  <TableHead>Late</TableHead>
-                  <TableHead className="text-right">Flag</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {days.map((d) => {
-                  const flagMeta: Record<string, string> = {
-                    early_exit: "Left early",
-                    missing_checkout: "Missing out",
-                  };
-                  return (
-                    <TableRow key={d.date} className={d.date === today ? "bg-sage-50/50" : undefined}>
-                      <TableCell className="font-mono text-xs">{d.date}</TableCell>
-                      <TableCell>{WEEKS[weekdayOf(d.date)]}</TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center gap-1.5">
-                          <StatusBadge status={d.output.status} />
-                          {d.output.flag && (
-                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                              {d.output.flag}
-                            </span>
-                          )}
-                        </span>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{hhmm(d.checkInAt)}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{hhmm(d.checkOutAt)}</TableCell>
-                      <TableCell className="text-xs">
-                        {d.lateMin > 0 ? (
-                          <span className="font-semibold text-amber-700">{d.lateMin}m</span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right text-xs">
-                        {d.isManual ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-700">
-                            <UserCog className="h-3 w-3" />
-                            corrected
+          <Table maxHeight="max-h-[70vh]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Day</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>In</TableHead>
+                <TableHead>Out</TableHead>
+                <TableHead>Late</TableHead>
+                <TableHead className="text-right">Flag</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {days.map((d) => {
+                const flagMeta: Record<string, string> = {
+                  early_exit: "Left early",
+                  missing_checkout: "Missing out",
+                };
+                return (
+                  <TableRow key={d.date} className={d.date === today ? "bg-sage-50/50" : undefined}>
+                    <TableCell className="font-mono text-xs">{d.date}</TableCell>
+                    <TableCell>{WEEKS[weekdayOf(d.date)]}</TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center gap-1.5">
+                        <StatusBadge status={d.output.status} />
+                        {!d.isFuture && d.output.flag && (
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                            {d.output.flag}
                           </span>
-                        ) : d.date > today ? (
-                          <span className="text-warm-500">upcoming</span>
-                        ) : (
-                          <span className="text-muted-foreground">{flagMeta[d.output.flag ?? ""] ?? ""}</span>
                         )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">{hhmm(d.checkInAt)}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">{hhmm(d.checkOutAt)}</TableCell>
+                    <TableCell className="text-xs">
+                      {d.lateMin > 0 ? (
+                        <span className="font-semibold text-amber-700">{d.lateMin}m</span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right text-xs">
+                      {d.isManual ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-700">
+                          <UserCog className="h-3 w-3" />
+                          corrected
+                        </span>
+                      ) : d.output.status === "upcoming" ? (
+                        <span className="text-warm-500">not worked yet</span>
+                      ) : (
+                        <span className="text-muted-foreground">{flagMeta[d.output.flag ?? ""] ?? ""}</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
           <p className="border-t py-2.5 text-xs text-muted-foreground">
             {totalDays} calendar days · times Asia/Dhaka · {monthLabel(month)}
           </p>

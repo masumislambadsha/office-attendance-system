@@ -1,4 +1,5 @@
-﻿import { collections } from "@/lib/mongo";
+﻿import Link from "next/link";
+import { collections } from "@/lib/mongo";
 import { toggleEmployeeActive } from "@/actions/admin";
 import { EmployeeFormDialog } from "@/components/employee-form-dialog";
 import { Card } from "@/components/ui/card";
@@ -44,61 +45,66 @@ export default async function AdminEmployeesPage() {
       </div>
 
       <Card className="mt-4">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Shift</TableHead>
-                <TableHead>Weekly off</TableHead>
-                <TableHead>Gross</TableHead>
-                <TableHead>Joined</TableHead>
-                <TableHead>Active</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {employees.map((e) => (
-                <TableRow key={e._id.toString()}>
-                  <TableCell className="font-medium">{e.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{e.email}</TableCell>
-                  <TableCell className="text-muted-foreground">{shiftNames.get(e.shift_id) ?? e.shift_id}</TableCell>
-                  <TableCell className="text-muted-foreground">{e.weekly_off.map((d) => WEEK_OPTIONS[d]?.[1]).join(", ")}</TableCell>
-                  <TableCell className="text-muted-foreground">{e.monthly_gross.toLocaleString()}</TableCell>
-                  <TableCell className="text-muted-foreground">{e.joined_at}</TableCell>
-                  <TableCell>
+        <Table maxHeight="max-h-[70vh]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Shift</TableHead>
+              <TableHead>Weekly off</TableHead>
+              <TableHead>Gross</TableHead>
+              <TableHead>Joined</TableHead>
+              <TableHead>Active</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {employees.map((e) => (
+              <TableRow key={e._id.toString()}>
+                <TableCell className="font-medium">
+                  <Link
+                    href={`/admin/employees/${e._id.toString()}`}
+                    className="font-medium text-[#1a1a1a] hover:text-sage-700 hover:underline underline-offset-3"
+                  >
+                    {e.name}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{e.email}</TableCell>
+                <TableCell className="text-muted-foreground">{shiftNames.get(e.shift_id) ?? e.shift_id}</TableCell>
+                <TableCell className="text-muted-foreground">{e.weekly_off.map((d) => WEEK_OPTIONS[d]?.[1]).join(", ")}</TableCell>
+                <TableCell className="text-muted-foreground">{e.monthly_gross.toLocaleString()}</TableCell>
+                <TableCell className="text-muted-foreground">{e.joined_at}</TableCell>
+                <TableCell>
+                  {e.active ? (
+                    <span className="font-bold text-emerald-700">yes</span>
+                  ) : (
+                    <span className="text-muted-foreground">no</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <a
+                    href={`/admin/employees?edit=${e._id}`}
+                    className="mr-2 text-sm font-medium text-primary hover:underline"
+                  >
+                    Edit
+                  </a>
+                  <form action={toggleEmployeeActive} className="inline">
+                    <input type="hidden" name="id" value={e._id.toString()} />
                     {e.active ? (
-                      <span className="font-bold text-emerald-700">yes</span>
+                      <SubmitButton variant="destructive" size="sm">
+                        Deactivate
+                      </SubmitButton>
                     ) : (
-                      <span className="text-muted-foreground">no</span>
+                      <SubmitButton size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700">
+                        Activate
+                      </SubmitButton>
                     )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <a
-                      href={`/admin/employees?edit=${e._id}`}
-                      className="mr-2 text-sm font-medium text-primary hover:underline"
-                    >
-                      Edit
-                    </a>
-                    <form action={toggleEmployeeActive} className="inline">
-                      <input type="hidden" name="id" value={e._id.toString()} />
-                      {e.active ? (
-                        <SubmitButton variant="destructive" size="sm">
-                          Deactivate
-                        </SubmitButton>
-                      ) : (
-                        <SubmitButton size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700">
-                          Activate
-                        </SubmitButton>
-                      )}
-                    </form>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                  </form>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </Card>
     </div>
   );

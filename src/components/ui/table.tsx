@@ -1,17 +1,41 @@
 "use client"
 
 import * as React from "react"
+import { ScrollShadow } from "@heroui/react"
 import { cn } from "cn"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
-  return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+type TableProps = React.ComponentProps<"table"> & {
+  containerClassName?: string
+  maxHeight?: string
+}
+
+function Table({ className, containerClassName, maxHeight, ...props }: TableProps) {
+  const table = (
+    <ScrollShadow
+      data-slot="table-container"
+      orientation="horizontal"
+      hideScrollBar
+      className={cn("relative w-full max-w-full", !maxHeight && containerClassName)}
+    >
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />
-    </div>
+    </ScrollShadow>
+  )
+
+  if (!maxHeight) return table
+
+  return (
+    <ScrollShadow
+      data-slot="table-scroll"
+      orientation="vertical"
+      hideScrollBar
+      className={cn("w-full max-w-full", maxHeight, containerClassName)}
+    >
+      {table}
+    </ScrollShadow>
   )
 }
 
@@ -19,7 +43,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b [&_tr]:border-warm-100", className)}
+      className={cn("sticky top-0 z-10 bg-card [&_tr]:border-b [&_tr]:border-warm-100", className)}
       {...props}
     />
   )

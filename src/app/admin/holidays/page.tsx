@@ -68,45 +68,43 @@ export default async function AdminHolidaysPage({ searchParams }: Props) {
       </Card>
 
       <Card className="mt-4">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Dates</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead className="text-right">Days</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+        <Table maxHeight="max-h-[70vh]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Dates</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead className="text-right">Days</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {groups.map((g) => (
+              <TableRow key={`${g.from}-${g.name}`}>
+                <TableCell className="font-mono text-xs font-medium">
+                  {g.from === g.to ? g.from : `${g.from} → ${g.to}`}
+                </TableCell>
+                <TableCell>{g.name}</TableCell>
+                <TableCell className="text-right text-muted-foreground">{g.days}</TableCell>
+                <TableCell className="text-right">
+                  <form action={removeHoliday} className="inline">
+                    <input type="hidden" name="from" value={g.from} />
+                    <input type="hidden" name="to" value={g.to} />
+                    <SubmitButton variant="ghost" size="sm" className="text-destructive">
+                      Remove
+                    </SubmitButton>
+                  </form>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {groups.map((g) => (
-                <TableRow key={`${g.from}-${g.name}`}>
-                  <TableCell className="font-mono text-xs font-medium">
-                    {g.from === g.to ? g.from : `${g.from} → ${g.to}`}
-                  </TableCell>
-                  <TableCell>{g.name}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{g.days}</TableCell>
-                  <TableCell className="text-right">
-                    <form action={removeHoliday} className="inline">
-                      <input type="hidden" name="from" value={g.from} />
-                      <input type="hidden" name="to" value={g.to} />
-                      <SubmitButton variant="ghost" size="sm" className="text-destructive">
-                        Remove
-                      </SubmitButton>
-                    </form>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {groups.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
-                    No holidays yet — load the 2026–27 BD govt calendar at setup.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+            {groups.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                  No holidays yet — load the 2026–27 BD govt calendar at setup.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </Card>
     </div>
   );

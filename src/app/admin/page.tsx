@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { collections } from "@/lib/mongo";
 import { computeDay, nowDateKey } from "@/attend/service";
 import { latestJobRun } from "@/attend/payroll";
@@ -106,51 +107,56 @@ export default async function AdminTodayPage() {
       </div>
 
       <Card className="rounded-[2rem] p-2 sm:p-4">
-        <div className="overflow-x-auto rounded-[1.5rem]">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Shift</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>In</TableHead>
-                <TableHead>Out</TableHead>
-                <TableHead>Late</TableHead>
-                <TableHead>Flag</TableHead>
+        <Table maxHeight="max-h-[70vh]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Employee</TableHead>
+              <TableHead>Shift</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>In</TableHead>
+              <TableHead>Out</TableHead>
+              <TableHead>Late</TableHead>
+              <TableHead>Flag</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.emp._id.toString()}>
+                <TableCell className="font-semibold text-[#1a1a1a]">
+                  <Link
+                    href={`/admin/employees/${r.emp._id.toString()}`}
+                    className="font-semibold text-[#1a1a1a] hover:text-sage-700 hover:underline underline-offset-3"
+                  >
+                    {r.emp.name}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-warm-600">
+                  {r.emp.shift_id}
+                  {r.emp.weekly_off.includes(weekday) && (
+                    <span className="ml-1 text-xs">({weeks[weekday]} off)</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={r.day.output.status} />
+                </TableCell>
+                <TableCell className="text-warm-600">{hm(r.day.checkInAt)}</TableCell>
+                <TableCell className="text-warm-600">{hm(r.day.checkOutAt)}</TableCell>
+                <TableCell className="font-semibold text-[#1a1a1a]">
+                  {r.day.lateMin > 0 ? `${r.day.lateMin}m` : "—"}
+                </TableCell>
+                <TableCell>
+                  {r.day.output.flag ? (
+                    <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                      {r.day.output.flag}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.emp._id.toString()}>
-                  <TableCell className="font-semibold text-[#1a1a1a]">{r.emp.name}</TableCell>
-                  <TableCell className="text-warm-600">
-                    {r.emp.shift_id}
-                    {r.emp.weekly_off.includes(weekday) && (
-                      <span className="ml-1 text-xs">({weeks[weekday]} off)</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={r.day.output.status} />
-                  </TableCell>
-                  <TableCell className="text-warm-600">{hm(r.day.checkInAt)}</TableCell>
-                  <TableCell className="text-warm-600">{hm(r.day.checkOutAt)}</TableCell>
-                  <TableCell className="font-semibold text-[#1a1a1a]">
-                    {r.day.lateMin > 0 ? `${r.day.lateMin}m` : "—"}
-                  </TableCell>
-                  <TableCell>
-                    {r.day.output.flag ? (
-                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                        {r.day.output.flag}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       </Card>
 
       <Card>

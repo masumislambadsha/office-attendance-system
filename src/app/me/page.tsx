@@ -19,6 +19,7 @@ const GRID_STYLES: Record<string, string> = {
   leave: "bg-sky-50 text-sky-700",
   weekend: "bg-warm-100 text-warm-500",
   holiday: "bg-violet-50 text-violet-700",
+  upcoming: "bg-warm-50 text-warm-400",
 };
 
 const BALANCE_TINTS = [
@@ -50,7 +51,10 @@ export default async function MyAttendancePage() {
   const totalDays = daysInMonth(month);
   const keys = rangeKeys(`${month}-01`, `${month}-${String(totalDays).padStart(2, "0")}`);
 
-  const cellDays = (await computeDays(employee, keys)).map((d) => ({ key: d.date, status: d.output.status }));
+  const cellDays = (await computeDays(employee, keys)).map((d) => ({
+    key: d.date,
+    status: d.output.status,
+  }));
 
   const year = Number(month.slice(0, 4));
   const types = await getAllLeaveTypes();

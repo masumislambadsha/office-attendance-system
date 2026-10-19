@@ -259,3 +259,19 @@
     @apply h-10 w-full min-w-0 rounded-2xl border border-input bg-warm-50 px-4 pr-8 text-sm text-foreground transition-all outline-none focus:border-sage-400 focus:ring-2 focus:ring-sage-500/30 disabled:pointer-events-none disabled:opacity-50;
   }
 }
+
+@layer utilities {
+  /*
+   * HeroUI's <Badge.Root> defaults to placement="top-right", whose CSS is
+   * `position: absolute; top: 0; right: 0; transform: translate(25%, -25%)`
+   * (an avatar-overlay badge). We use badges as inline status pills, so without
+   * this every badge escapes its cell and stacks on the nearest positioned
+   * ancestor — in a table that is the scroll container, so the whole STATUS
+   * column renders blank with one badge piled in the corner. Declared in the
+   * utilities layer so it outranks HeroUI's components-layer rule.
+   */
+  [data-slot="badge"] {
+    position: relative;
+    transform: none;
+  }
+}

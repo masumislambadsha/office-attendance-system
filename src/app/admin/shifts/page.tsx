@@ -163,37 +163,35 @@ export default async function AdminShiftsPage({ searchParams }: Props) {
         <code className="rounded-lg bg-warm-100 px-1 py-0.5 font-mono text-xs">shift_overrides</code>.
       </p>
       <Card className="mt-2">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Shift</TableHead>
-                <TableHead>From</TableHead>
-                <TableHead>To</TableHead>
-                <TableHead>Hours</TableHead>
+        <Table maxHeight="max-h-[70vh]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Shift</TableHead>
+              <TableHead>From</TableHead>
+              <TableHead>To</TableHead>
+              <TableHead>Hours</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {overrides.map((o) => (
+              <TableRow key={o._id.toString()}>
+                <TableCell>{o.shift_id}</TableCell>
+                <TableCell>{o.date_from}</TableCell>
+                <TableCell>{o.date_to}</TableCell>
+                <TableCell>
+                  {o.start_time}–{o.end_time}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {overrides.map((o) => (
-                <TableRow key={o._id.toString()}>
-                  <TableCell>{o.shift_id}</TableCell>
-                  <TableCell>{o.date_from}</TableCell>
-                  <TableCell>{o.date_to}</TableCell>
-                  <TableCell>
-                    {o.start_time}–{o.end_time}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {overrides.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
-                    No overrides yet.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+            {overrides.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                  No overrides yet.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </Card>
     </div>
   );
