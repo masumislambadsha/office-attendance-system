@@ -14,14 +14,22 @@ export interface RpConfig {
  */
 export function rpConfig(): RpConfig {
   const origins = new Set<string>();
-  const base = process.env.BETTER_AUTH_URL;
-  if (base) {
-    try {
-      origins.add(new URL(base).origin);
-    } catch {
-      /* fall through to the defaults */
+  const add = (value: string | undefined) => {
+    if (!value) return;
+    for (const part of value.split(",")) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      try {
+        origins.add(new URL(trimmed).origin);
+      } catch {
+        /* not an origin — ignore it */
+      }
     }
-  }
+  };
+  add(process.env.BETTER_AUTH_URL);
+  // Extra origins the app already trusts (dev tunnels, a staging host, …).
+  // A ceremony from an origin outside this list is rejected by the browser.
+  add(process.env.BETTER_AUTH_TRUSTED_ORIGINS);
   origins.add("http://localhost:3000");
   return { rpID: WEBAUTHN_RP_ID, rpName: WEBAUTHN_RP_NAME, origins: [...origins] };
 }
