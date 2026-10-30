@@ -229,7 +229,11 @@ export async function removeEmployeeLogin(formData: FormData): Promise<void> {
   const employee = await collections().employees.findOne({ _id: new ObjectId(id) });
   if (!employee) redirect("/admin/employees?error=employee%20not%20found");
 
-  const back = `/admin/employees/${id}`;
+  const requestedBack = String(formData.get("back") ?? "");
+  const back =
+    requestedBack === "/admin/employees" || /^\/admin\/employees\/[a-f0-9]{24}$/.test(requestedBack)
+      ? requestedBack
+      : `/admin/employees/${id}`;
   if (employee.email.trim().toLowerCase() === actor.email.trim().toLowerCase()) {
     redirect(`${back}?error=${encodeURIComponent("You cannot remove your own login.")}`);
   }

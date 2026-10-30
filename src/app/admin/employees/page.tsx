@@ -1,8 +1,11 @@
 ﻿import Link from "next/link";
-import { collections } from "@/lib/mongo";
-import { toggleEmployeeActive } from "@/actions/admin";
+import { collections, getDb } from "@/lib/mongo";
+import { deleteEmployee, toggleEmployeeActive } from "@/actions/admin";
+import { removeEmployeeLogin } from "@/actions/login";
 import { EmployeeFormDialog } from "@/components/employee-form-dialog";
 import { Card } from "@/components/ui/card";
+import { ConfirmSubmit } from "@/components/ui/confirm-submit";
+import { ErrorBanner } from "@/components/ui";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -19,12 +22,18 @@ const WEEK_OPTIONS: Array<[string, string]> = [
   ["6", "Sat"],
 ];
 
-export default async function AdminEmployeesPage() {
-  const [employees, shifts] = await Promise.all([
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+export default async function AdminEmployeesPage({ searchParams }: Props) {
+  const query = await searchParams;
+  const error = typeof query?.error === "string" ? query.error : null;
+  const [employees, shifts, loginDocs] = await Promise.all([
     collections().employees.find({}).sort({ name: 1 }).toArray(),
     collections().shifts.find({}).toArray(),
+    getDb().collection("user").find({}, { projection: { email: 1 } }).toArray(),
   ]);
   const shiftNames = new Map(shifts.map((s) => [s._id, s.name]));
+  const loginEmails = new Set(loginDocs.map((u) => String(u.email).toLowerCase()));
 
   const employeesPlain = employees.map((e) => ({
     _id: e._id.toString(),
@@ -39,6 +48,7 @@ export default async function AdminEmployeesPage() {
 
   return (
     <div>
+      <ErrorBanner message={error} />
       <div className="flex items-center justify-between gap-4">
         <h1 className="font-serif text-2xl font-bold tracking-tight text-[#1a1a1a] sm:text-3xl">Employees</h1>
         <EmployeeFormDialog employees={employeesPlain} shifts={shifts} />
@@ -82,24 +92,46 @@ export default async function AdminEmployeesPage() {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <a
-                    href={`/admin/employees?edit=${e._id}`}
-                    className="mr-2 text-sm font-medium text-primary hover:underline"
-                  >
-                    Edit
-                  </a>
-                  <form action={toggleEmployeeActive} className="inline">
-                    <input type="hidden" name="id" value={e._id.toString()} />
-                    {e.active ? (
-                      <SubmitButton variant="destructive" size="sm">
-                        Deactivate
-                      </SubmitButton>
-                    ) : (
-                      <SubmitButton size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700">
-                        Activate
-                      </SubmitButton>
+                  <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                    <a
+                      href={`/admin/employees?edit=${e._id}`}
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      Edit
+                    </a>
+                    <form action={toggleEmployeeActive} className="inline">
+                      <input type="hidden" name="id" value={e._id.toString()} />
+                      {e.active ? (
+                        <SubmitButton variant="destructive" size="sm">
+                          Deactivate
+                        </SubmitButton>
+                      ) : (
+                        <SubmitButton size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700">
+                          Activate
+                        </SubmitButton>
+                      )}
+                    </form>
+                    {loginEmails.has(e.email.toLowerCase()) && (
+                      <form action={removeEmployeeLogin} className="inline">
+                        <input type="hidden" name="employee_id" value={e._id.toString()} />
+                        <input type="hidden" name="back" value="/admin/employees" />
+                        <ConfirmSubmit
+                          message={`Remove the login for ${e.email}? They will be signed out and must register again or have you create a new password. Attendance history stays intact.`}
+                        >
+                          Remove login
+                        </ConfirmSubmit>
+                      </form>
                     )}
-                  </form>
+                    <form action={deleteEmployee} className="inline">
+                      <input type="hidden" name="id" value={e._id.toString()} />
+                      <input type="hidden" name="back" value="/admin/employees" />
+                      <ConfirmSubmit
+                        message={`Delete ${e.name} permanently? This only works if they have no attendance, leave, or payroll history. To keep history, deactivate instead.`}
+                      >
+                        Delete
+                      </ConfirmSubmit>
+                    </form>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

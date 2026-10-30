@@ -128,7 +128,11 @@ export async function deleteEmployee(formData: FormData): Promise<void> {
   const employee = await collections().employees.findOne({ _id: new ObjectId(id) });
   if (!employee) return fail("/admin/employees", "employee not found");
 
-  const back = `/admin/employees/${id}`;
+  const requestedBack = String(formData.get("back") ?? "");
+  const back =
+    requestedBack === "/admin/employees" || /^\/admin\/employees\/[a-f0-9]{24}$/.test(requestedBack)
+      ? requestedBack
+      : `/admin/employees/${id}`;
   if (employee.email.trim().toLowerCase() === actor.email.trim().toLowerCase()) {
     return fail(back, "you cannot delete your own employee record");
   }
