@@ -6,9 +6,10 @@ import { ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles, TriangleAlert } from "lu
 import { Spinner } from "@/components/ui/spinner";
 
 // Dev-only one-click login (the server hides this block in production). The
-// credentials live in the environment so a real password never enters git.
-const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? "demo.admin@demo.com";
-const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD ?? "demo123456";
+// credentials live in the environment so a real password never enters git; if
+// they are not configured the block is not rendered at all.
+const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? "";
+const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD ?? "";
 
 export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnabled: boolean; demoEnabled: boolean }) {
   const router = useRouter();
@@ -202,7 +203,7 @@ export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnable
             </div>
           )}
 
-          {demoEnabled && (
+          {demoEnabled && DEMO_EMAIL && DEMO_PASSWORD && (
             <div className="mt-7 rounded-2xl border border-warm-200 bg-warm-50 p-5">
               <div className="mb-2 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-sage-600" />
