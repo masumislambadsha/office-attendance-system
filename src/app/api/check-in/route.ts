@@ -18,7 +18,7 @@ import { computeDay, getEffectiveShift, getWorkingDayScans, materializeDay, nowD
 import { isOvernightShift } from "@/attend/status";
 import { hhmmToMinutes, workingDateForScan } from "@/lib/time";
 import { rpConfig } from "@/lib/webauthn";
-import { challengeFromClientData, resolveBiometricPolicy } from "@/attend/biometric";
+import { challengeFromClientData, clientDataJsonFrom, resolveBiometricPolicy } from "@/attend/biometric";
 import { credentialsFor } from "@/lib/webauthn-server";
 
 export const dynamic = "force-dynamic";
@@ -55,8 +55,10 @@ export async function POST(request: Request) {
     accuracy?: number;
     assertion?: {
       id?: string;
+      rawId?: string;
+      type?: string;
       clientDataJSON?: string;
-      response?: { authenticatorData?: string; signature?: string; userHandle?: string | null };
+      response?: { clientDataJSON?: string; authenticatorData?: string; signature?: string; userHandle?: string | null };
     };
   };
   const { token, device_token } = body;
@@ -132,8 +134,11 @@ export async function POST(request: Request) {
 
     if (decision.required) {
       const assertion = body.assertion;
+      // @simplewebauthn/browser sends the WebAuthn JSON shape: the signed
+      // clientDataJSON is under `assertion.response`.
+      const clientDataJSON = clientDataJsonFrom(assertion);
       if (
-        !assertion?.clientDataJSON ||
+        !clientDataJSON ||
         !assertion?.id ||
         !assertion.response?.authenticatorData ||
         !assertion.response?.signature
@@ -144,7 +149,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const challenge = challengeFromClientData(assertion.clientDataJSON);
+      const challenge = challengeFromClientData(clientDataJSON);
       if (!challenge) {
         return NextResponse.json({ error: "malformed biometric response", code: "biometric_failed" }, { status: 400 });
       }

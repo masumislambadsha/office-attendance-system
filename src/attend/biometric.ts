@@ -42,3 +42,22 @@ export function challengeFromClientData(clientDataJSON: string): string | null {
     return null;
   }
 }
+
+/**
+ * The signed clientDataJSON out of a WebAuthn response.
+ *
+ * `@simplewebauthn/browser` hands back the WebAuthn JSON shape, where the
+ * signed bytes sit one level down: `response.response.clientDataJSON`. The
+ * flat shape is accepted as well, so a client cannot be turned away by the
+ * nesting of its own payload — but the nested one is what the library
+ * actually sends.
+ */
+export function clientDataJsonFrom(response: unknown): string | null {
+  if (!response || typeof response !== "object") return null;
+  const outer = response as { clientDataJSON?: unknown; response?: { clientDataJSON?: unknown } };
+  const nested = outer.response?.clientDataJSON;
+  if (typeof nested === "string" && nested.length > 0) return nested;
+  const flat = outer.clientDataJSON;
+  if (typeof flat === "string" && flat.length > 0) return flat;
+  return null;
+}

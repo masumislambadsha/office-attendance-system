@@ -6,7 +6,7 @@ import { currentSession } from "@/auth";
 import { collections } from "@/lib/mongo";
 import { writeAudit } from "@/actions/audit";
 import { rpConfig } from "@/lib/webauthn";
-import { challengeFromClientData } from "@/attend/biometric";
+import { challengeFromClientData, clientDataJsonFrom } from "@/attend/biometric";
 import { deviceFor, employeeFor } from "@/lib/webauthn-server";
 
 export const dynamic = "force-dynamic";
@@ -25,11 +25,14 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as {
     device_token?: string;
-    response?: { id?: string; clientDataJSON?: string };
+    response?: { id?: string; response?: { clientDataJSON?: string } };
   };
   const deviceToken = (body.device_token ?? "").trim();
   const response = body.response;
-  if (!deviceToken || !response?.clientDataJSON || !response?.id) {
+  // The attestation arrives in @simplewebauthn/browser's JSON shape, where the
+  // signed clientDataJSON sits under `response.response`.
+  const clientDataJSON = clientDataJsonFrom(response);
+  if (!deviceToken || !response?.id || !clientDataJSON) {
     return NextResponse.json({ error: "device_token and response required", code: "bad_request" }, { status: 400 });
   }
 
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
 
   // The challenge is looked up by the value the browser signed over — the
   // client cannot choose which challenge it is answering.
-  const challenge = challengeFromClientData(response.clientDataJSON);
+  const challenge = challengeFromClientData(clientDataJSON);
   if (!challenge) {
     return NextResponse.json({ error: "malformed response", code: "bad_request" }, { status: 400 });
   }

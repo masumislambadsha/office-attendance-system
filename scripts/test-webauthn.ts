@@ -1,7 +1,7 @@
 // Runs with: node scripts/test-webauthn.ts (Node 20.11+ type stripping)
 // Covers the pure biometric-factor rules: what the check-in demands of an
 // employee, and how the pending challenge is read back out of a response.
-import { challengeFromClientData, resolveBiometricPolicy } from "../src/attend/biometric.ts";
+import { challengeFromClientData, clientDataJsonFrom, resolveBiometricPolicy } from "../src/attend/biometric.ts";
 
 let pass = 0;
 let fail = 0;
@@ -71,6 +71,41 @@ eq(
   "json without a challenge yields null",
   challengeFromClientData(Buffer.from(JSON.stringify({ type: "webauthn.get" })).toString("base64url")),
   null,
+);
+
+console.log("§4 — the signed client data is found in the WebAuthn JSON shape");
+eq(
+  "nested shape (what @simplewebauthn/browser sends)",
+  clientDataJsonFrom({ id: "cred", response: { clientDataJSON: "nested-value" } }),
+  "nested-value",
+);
+eq(
+  "flat shape is still accepted",
+  clientDataJsonFrom({ id: "cred", clientDataJSON: "flat-value" }),
+  "flat-value",
+);
+eq("missing response yields null", clientDataJsonFrom({ id: "cred" }), null);
+eq("null yields null", clientDataJsonFrom(null), null);
+eq("undefined yields null", clientDataJsonFrom(undefined), null);
+eq("non-object yields null", clientDataJsonFrom("nope"), null);
+eq(
+  "nested value wins over flat",
+  clientDataJsonFrom({ clientDataJSON: "flat", response: { clientDataJSON: "nested" } }),
+  "nested",
+);
+eq(
+  "the challenge is read out of the nested shape",
+  challengeFromClientData(
+    clientDataJsonFrom({
+      id: "cred",
+      response: {
+        clientDataJSON: Buffer.from(
+          JSON.stringify({ type: "webauthn.create", challenge: "Y2hhbGxlbmdlLXZhbHVl" }),
+        ).toString("base64url"),
+      },
+    }) ?? "",
+  ),
+  "Y2hhbGxlbmdlLXZhbHVl",
 );
 
 console.log("");
