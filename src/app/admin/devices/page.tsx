@@ -1,7 +1,8 @@
 import { collections } from "@/lib/mongo";
-import { revokeWebAuthnCredentials, setDeviceStatus } from "@/actions/admin";
+import { removeDevice, revokeWebAuthnCredentials, setDeviceStatus } from "@/actions/admin";
 import { ErrorBanner } from "@/components/ui";
 import { Card } from "@/components/ui/card";
+import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BIOMETRIC_POLICY } from "@/lib/constants";
@@ -119,6 +120,15 @@ export default async function AdminDevicesPage({ searchParams }: Props) {
                         </SubmitButton>
                       </form>
                     )}
+                    <form action={removeDevice} className="inline">
+                      <input type="hidden" name="device_id" value={d._id.toString()} />
+                      <input type="hidden" name="back" value="/admin/devices" />
+                      <ConfirmSubmit
+                        message={`Remove this device permanently? Fingerprints on it will be deleted, and the phone will need to be approved again if it comes back.`}
+                      >
+                        Remove
+                      </ConfirmSubmit>
+                    </form>
                   </TableCell>
                 </TableRow>
               );

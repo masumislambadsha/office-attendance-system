@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import { getAuth, requireAdmin, requireEmployee } from "@/auth";
 import { collections, getDb } from "@/lib/mongo";
 import { generatePassword, hashPassword } from "@/lib/password";
+import { removeLoginByEmail } from "@/lib/accounts";
 import { writeAudit } from "@/actions/audit";
 
 export interface LoginState {
@@ -213,4 +214,39 @@ export async function changeOwnPassword(
   }
 
   return { ok: true, message: "Password changed." };
+}
+
+/**
+ * Remove an employee's better-auth login without touching the employee record
+ * or attendance history. The email becomes available at /register again, and
+ * an admin can also create a fresh password from the employee page.
+ */
+export async function removeEmployeeLogin(formData: FormData): Promise<void> {
+  const actor = await requireAdmin();
+  const id = String(formData.get("employee_id") ?? "");
+  if (!ObjectId.isValid(id)) redirect("/admin/employees?error=bad%20employee%20id");
+
+  const employee = await collections().employees.findOne({ _id: new ObjectId(id) });
+  if (!employee) redirect("/admin/employees?error=employee%20not%20found");
+
+  const back = `/admin/employees/${id}`;
+  if (employee.email.trim().toLowerCase() === actor.email.trim().toLowerCase()) {
+    redirect(`${back}?error=${encodeURIComponent("You cannot remove your own login.")}`);
+  }
+
+  const removed = await removeLoginByEmail(employee.email);
+  if (!removed) {
+    redirect(`${back}?error=${encodeURIComponent("No login exists for this employee.")}`);
+  }
+
+  await writeAudit({
+    actor: actor.email,
+    action: "employee.login.remove",
+    entity: `employees:${id}`,
+    old: { email: employee.email },
+    new: null,
+  });
+
+  revalidatePath(back);
+  redirect(back);
 }

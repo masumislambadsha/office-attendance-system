@@ -6,6 +6,7 @@ import { ObjectId } from "mongodb";
 import { collections } from "@/lib/mongo";
 import { requireAdmin } from "@/auth";
 import { writeAudit } from "@/actions/audit";
+import { removeLoginByEmail } from "@/lib/accounts";
 import { monthOf, rangeKeys } from "@/lib/time";
 import { CORRECTABLE_STATUSES, DayStatus } from "@/attend/types";
 import { closeMonth, reopenMonth } from "@/attend/payroll";
@@ -112,6 +113,54 @@ export async function toggleEmployeeActive(formData: FormData): Promise<void> {
     new: { active: next },
   });
   revalidatePath("/admin/employees");
+}
+
+/**
+ * Delete a brand-new employee record that has no attendance, leave, or payroll
+ * history. Anyone with history must be deactivated instead so the monthly
+ * sheets and audit trail stay intact.
+ */
+export async function deleteEmployee(formData: FormData): Promise<void> {
+  const actor = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!ObjectId.isValid(id)) return fail("/admin/employees", "bad employee id");
+
+  const employee = await collections().employees.findOne({ _id: new ObjectId(id) });
+  if (!employee) return fail("/admin/employees", "employee not found");
+
+  const back = `/admin/employees/${id}`;
+  if (employee.email.trim().toLowerCase() === actor.email.trim().toLowerCase()) {
+    return fail(back, "you cannot delete your own employee record");
+  }
+
+  const [statuses, leaves, adjustments] = await Promise.all([
+    collections().dailyStatus.countDocuments({ employee_id: employee._id }),
+    collections().leaveRequests.countDocuments({ employee_id: employee._id }),
+    collections().payrollAdjustments.countDocuments({ employee_id: employee._id }),
+  ]);
+  if (statuses + leaves + adjustments > 0) {
+    return fail(back, "employee has attendance, leave, or payroll history — deactivate instead");
+  }
+
+  await removeLoginByEmail(employee.email);
+  await Promise.all([
+    collections().devices.deleteMany({ employee_id: employee._id }),
+    collections().webauthnCredentials.deleteMany({ employee_id: employee._id }),
+    collections().webauthnChallenges.deleteMany({ employee_id: employee._id }),
+    collections().leaveBalances.deleteMany({ employee_id: employee._id }),
+  ]);
+  await collections().employees.deleteOne({ _id: employee._id });
+
+  await writeAudit({
+    actor: actor.email,
+    action: "employee.delete",
+    entity: `employees:${id}`,
+    old: { name: employee.name, email: employee.email },
+    new: null,
+  });
+
+  revalidatePath("/admin/employees");
+  redirect("/admin/employees");
 }
 
 export async function saveShift(formData: FormData): Promise<void> {
@@ -293,6 +342,46 @@ export async function revokeWebAuthnCredentials(formData: FormData): Promise<voi
     reason: String(formData.get("reason") ?? "fingerprint revoked by admin").trim() || undefined,
   });
   revalidatePath("/admin/devices");
+}
+
+/**
+ * Permanently remove a device: the device row, its enrolled fingerprints, and
+ * any pending WebAuthn challenge. If the same install registers again it comes
+ * back as a fresh pending device.
+ */
+export async function removeDevice(formData: FormData): Promise<void> {
+  const actor = await requireAdmin();
+  const id = String(formData.get("device_id") ?? "");
+  const requestedBack = String(formData.get("back") ?? "/admin/devices");
+  const back = /^\/admin\/(devices|employees\/[a-f0-9]{24})$/.test(requestedBack)
+    ? requestedBack
+    : "/admin/devices";
+
+  if (!ObjectId.isValid(id)) return fail(back, "bad device");
+  const device = await collections().devices.findOne({ _id: new ObjectId(id) });
+  if (!device) return fail(back, "device not found");
+
+  const [credentials] = await Promise.all([
+    collections().webauthnCredentials.deleteMany({ device_token: device.device_token }),
+    collections().webauthnChallenges.deleteMany({ device_token: device.device_token }),
+  ]);
+  await collections().devices.deleteOne({ _id: device._id });
+
+  await writeAudit({
+    actor: actor.email,
+    action: "device.remove",
+    entity: `devices:${id}`,
+    old: {
+      employee_id: device.employee_id.toString(),
+      status: device.status,
+      fingerprint_count: credentials.deletedCount,
+    },
+    new: null,
+  });
+
+  revalidatePath("/admin/devices");
+  revalidatePath(`/admin/employees/${device.employee_id.toString()}`);
+  redirect(back);
 }
 
 export async function manualCorrect(formData: FormData): Promise<void> {

@@ -5,10 +5,12 @@ import { ObjectId } from "mongodb";
 import { collections, getDb } from "@/lib/mongo";
 import { computeDays, nowDateKey } from "@/attend/service";
 import { availableBalance, getAllLeaveTypes, monthLabel } from "@/attend/leave";
-import { setDeviceStatus, toggleEmployeeActive } from "@/actions/admin";
+import { setDeviceStatus, toggleEmployeeActive, deleteEmployee, removeDevice } from "@/actions/admin";
+import { removeEmployeeLogin } from "@/actions/login";
 import { currentMonthKey, daysInMonth, rangeKeys, weekdayOf } from "@/lib/time";
-import { Card, CardContent, CardHeader, CardTitle, Row, StatusBadge } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, ErrorBanner, Row, StatusBadge } from "@/components/ui";
 import { buttonVariants } from "@/components/ui/button";
+import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { CreateLoginCard } from "@/components/create-login-card";
 import { Label } from "@/components/ui/label";
@@ -84,6 +86,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: Props
   if (!employee) notFound();
 
   const query = await searchParams;
+  const error = typeof query?.error === "string" ? query.error : null;
   const today = nowDateKey();
   const currentMonth = currentMonthKey();
   const month =
@@ -167,6 +170,7 @@ export default async function EmployeeDetailPage({ params, searchParams }: Props
 
   return (
     <div className="space-y-5 sm:space-y-8">
+      <ErrorBanner message={error} />
       <div>
         <Link
           href="/admin/employees"
@@ -511,6 +515,24 @@ export default async function EmployeeDetailPage({ params, searchParams }: Props
                   </SubmitButton>
                 )}
               </form>
+              <form action={deleteEmployee}>
+                <input type="hidden" name="id" value={employee._id.toString()} />
+                <ConfirmSubmit
+                  message={`Delete ${employee.name} permanently? This only works if they have no attendance, leave, or payroll history. To keep history, deactivate instead.`}
+                >
+                  Delete employee
+                </ConfirmSubmit>
+              </form>
+              {hasLogin && (
+                <form action={removeEmployeeLogin}>
+                  <input type="hidden" name="employee_id" value={employee._id.toString()} />
+                  <ConfirmSubmit
+                    message={`Remove the login for ${employee.email}? They will be signed out and must register again or have you create a new password. Attendance history stays intact. To block access, deactivate them instead.`}
+                  >
+                    Remove login
+                  </ConfirmSubmit>
+                </form>
+              )}
             </CardContent>
           </Card>
 
@@ -585,6 +607,15 @@ export default async function EmployeeDetailPage({ params, searchParams }: Props
                         </SubmitButton>
                       </form>
                     )}
+                    <form action={removeDevice}>
+                      <input type="hidden" name="device_id" value={d._id.toString()} />
+                      <input type="hidden" name="back" value={`/admin/employees/${employee._id}`} />
+                      <ConfirmSubmit
+                        message="Remove this device permanently? Fingerprints on it will be deleted too."
+                      >
+                        Remove
+                      </ConfirmSubmit>
+                    </form>
                   </div>
                 </div>
               ))}
