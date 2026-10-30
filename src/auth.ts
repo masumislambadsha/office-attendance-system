@@ -11,14 +11,29 @@ let _auth: ReturnType<typeof createAuth> | null = null;
 
 const hasGoogle = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
+/**
+ * Origins better-auth accepts a request from.
+ *
+ * `BETTER_AUTH_TRUSTED_ORIGINS` lists them explicitly (dev tunnels, a staging
+ * host, …); the Vercel aliases are added automatically because preview
+ * deployments get a random host that nobody can hard-code in the dashboard.
+ */
+function trustedOrigins(): string[] {
+  const origins = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (const host of [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL]) {
+    if (host) origins.push(`https://${host}`);
+  }
+  return origins;
+}
+
 function createAuth() {
   return betterAuth({
     database: mongodbAdapter(getDb(), { client: getMongoClient(), transaction: false }),
     baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-    trustedOrigins: (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean),
+    trustedOrigins: trustedOrigins(),
     secret: process.env.BETTER_AUTH_SECRET,
     advanced: {
       database: {

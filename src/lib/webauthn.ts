@@ -30,6 +30,9 @@ export function rpConfig(): RpConfig {
   // Extra origins the app already trusts (dev tunnels, a staging host, …).
   // A ceremony from an origin outside this list is rejected by the browser.
   add(process.env.BETTER_AUTH_TRUSTED_ORIGINS);
+  // The Vercel deployment that is serving the ceremony.
+  add(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+  add(process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : undefined);
   origins.add("http://localhost:3000");
   return { rpID: WEBAUTHN_RP_ID, rpName: WEBAUTHN_RP_NAME, origins: [...origins] };
 }
