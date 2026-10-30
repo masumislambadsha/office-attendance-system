@@ -116,9 +116,9 @@ export async function toggleEmployeeActive(formData: FormData): Promise<void> {
 }
 
 /**
- * Delete a brand-new employee record that has no attendance, leave, or payroll
- * history. Anyone with history must be deactivated instead so the monthly
- * sheets and audit trail stay intact.
+ * Permanently delete an employee and every record tied to them: login,
+ * devices, fingerprints, attendance, leave, and payroll adjustments. Deletion
+ * is irreversible; admins who need to keep history should deactivate instead.
  */
 export async function deleteEmployee(formData: FormData): Promise<void> {
   const actor = await requireAdmin();
@@ -142,12 +142,12 @@ export async function deleteEmployee(formData: FormData): Promise<void> {
     collections().leaveRequests.countDocuments({ employee_id: employee._id }),
     collections().payrollAdjustments.countDocuments({ employee_id: employee._id }),
   ]);
-  if (statuses + leaves + adjustments > 0) {
-    return fail(back, "employee has attendance, leave, or payroll history — deactivate instead");
-  }
 
   await removeLoginByEmail(employee.email);
   await Promise.all([
+    collections().dailyStatus.deleteMany({ employee_id: employee._id }),
+    collections().leaveRequests.deleteMany({ employee_id: employee._id }),
+    collections().payrollAdjustments.deleteMany({ employee_id: employee._id }),
     collections().devices.deleteMany({ employee_id: employee._id }),
     collections().webauthnCredentials.deleteMany({ employee_id: employee._id }),
     collections().webauthnChallenges.deleteMany({ employee_id: employee._id }),
@@ -159,7 +159,13 @@ export async function deleteEmployee(formData: FormData): Promise<void> {
     actor: actor.email,
     action: "employee.delete",
     entity: `employees:${id}`,
-    old: { name: employee.name, email: employee.email },
+    old: {
+      name: employee.name,
+      email: employee.email,
+      daily_status: statuses,
+      leave_requests: leaves,
+      payroll_adjustments: adjustments,
+    },
     new: null,
   });
 

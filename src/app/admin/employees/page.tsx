@@ -126,7 +126,7 @@ export default async function AdminEmployeesPage({ searchParams }: Props) {
                       <input type="hidden" name="id" value={e._id.toString()} />
                       <input type="hidden" name="back" value="/admin/employees" />
                       <ConfirmSubmit
-                        message={`Delete ${e.name} permanently? This only works if they have no attendance, leave, or payroll history. To keep history, deactivate instead.`}
+                        message={`Delete ${e.name} permanently? This also deletes ALL attendance, leave, and payroll history for this employee. This cannot be undone. Use Deactivate instead if you need to keep history.`}
                       >
                         Delete
                       </ConfirmSubmit>
