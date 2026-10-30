@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles, TriangleAlert } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 
-const DEMO_EMAIL = "demo.admin@demo.com";
-const DEMO_PASSWORD = "demo123456";
+// Dev-only one-click login (the server hides this block in production). The
+// credentials live in the environment so a real password never enters git.
+const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? "demo.admin@demo.com";
+const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD ?? "demo123456";
 
 export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnabled: boolean; demoEnabled: boolean }) {
   const router = useRouter();
