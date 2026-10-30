@@ -19,6 +19,7 @@ import {
   Building2,
   QrCode,
   TrendingUp,
+  KeyRound,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "cn";
@@ -34,6 +35,7 @@ const EMPLOYEE_NAV: NavItem[] = [
   { icon: LayoutDashboard, label: "My attendance", href: "/me" },
   { icon: History, label: "History", href: "/me/history" },
   { icon: CalendarDays, label: "Leave", href: "/me/leave" },
+  { icon: KeyRound, label: "Security", href: "/me/security" },
   { icon: ScanLine, label: "Scanner", href: "/scan" },
 ];
 

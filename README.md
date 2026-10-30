@@ -42,6 +42,7 @@ This creates a custom role: full find/insert/update/remove on every app collecti
 | `scripts/setup-app-user.mjs` | Least-privilege app DB user + append-only audit lock |
 | `scripts/test-status.ts` | Pure-engine boundary tests (`node scripts/test-status.ts`; no npm wiring) |
 | `scripts/test-webauthn.ts` | Biometric-factor rules (`node scripts/test-webauthn.ts`) |
+| `scripts/test-password.ts` | Credential hashing used by better-auth (`node scripts/test-password.ts`) |
 
 ## How attendance works
 

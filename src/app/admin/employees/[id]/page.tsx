@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ObjectId } from "mongodb";
-import { collections } from "@/lib/mongo";
+import { collections, getDb } from "@/lib/mongo";
 import { computeDays, nowDateKey } from "@/attend/service";
 import { availableBalance, getAllLeaveTypes, monthLabel } from "@/attend/leave";
 import { setDeviceStatus, toggleEmployeeActive } from "@/actions/admin";
@@ -10,6 +10,7 @@ import { currentMonthKey, daysInMonth, rangeKeys, weekdayOf } from "@/lib/time";
 import { Card, CardContent, CardHeader, CardTitle, Row, StatusBadge } from "@/components/ui";
 import { buttonVariants } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { CreateLoginCard } from "@/components/create-login-card";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, History, UserCog } from "lucide-react";
@@ -116,6 +117,19 @@ export default async function EmployeeDetailPage({ params, searchParams }: Props
       .limit(20)
       .toArray(),
   ]);
+
+  const loginDb = getDb();
+  const loginUser = await loginDb
+    .collection("user")
+    .findOne({ email: employee.email.trim().toLowerCase() });
+  const hasLogin = loginUser
+    ? Boolean(
+        await loginDb.collection("account").findOne({
+          userId: loginUser._id,
+          providerId: "credential",
+        }),
+      )
+    : false;
 
   const balances = await Promise.all(
     leaveTypes.map(async (t) => ({ type: t, balance: await availableBalance(employeeId, t._id, year) })),
@@ -499,6 +513,12 @@ export default async function EmployeeDetailPage({ params, searchParams }: Props
               </form>
             </CardContent>
           </Card>
+
+          <CreateLoginCard
+            employeeId={employee._id.toString()}
+            email={employee.email}
+            hasLogin={hasLogin}
+          />
 
           <div>
             <h2 className="mb-2 font-serif text-lg font-bold tracking-tight text-[#1a1a1a]">
