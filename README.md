@@ -51,6 +51,7 @@ This creates a custom role: full find/insert/update/remove on every app collecti
 - **Factors** (`src/attend/biometric.ts`): session → QR → approved device → geofence → phone fingerprint. The last one is a WebAuthn platform credential (the phone's own sensor) verified server-side with `@simplewebauthn/server`; the credential is bound to the approved device, and the assertion must answer a challenge issued for that employee, that device and that QR token.
 - **Leave** (`src/attend/leave.ts`): balances per leave type; requests validated for overlap + same-year range; admin approve/cancel/reject updates balances atomically; earned accrual is idempotent and recomputed year-to-date.
 - **Payroll** (`src/attend/payroll.ts`): monthly sheet (`/admin/sheet`, CSV export) with deduction days from configurable rules; `/admin/close` freezes a month — closed months can't be edited.
+- **Trends** (`/admin/trends`): late/absent/half-day counts per employee over a rolling three-month window, aggregated from materialized `daily_status` rows.
 - **Cron**: `POST/GET /api/cron/daily-status` (Vercel cron at 00:00 Dhaka, `0 18 * * *` UTC) requires `CRON_SECRET` and backfills up to 31 missing days per employee.
 
 ## Check-in modes

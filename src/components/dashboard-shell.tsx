@@ -18,6 +18,7 @@ import {
   History,
   Building2,
   QrCode,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "cn";
@@ -46,6 +47,7 @@ const ADMIN_NAV: NavItem[] = [
   { icon: Inbox, label: "Leaves", href: "/admin/leaves" },
   { icon: Lock, label: "Monthly close", href: "/admin/close" },
   { icon: Table2, label: "Monthly sheet", href: "/admin/sheet" },
+  { icon: TrendingUp, label: "Trends", href: "/admin/trends" },
 ];
 
 export interface ShellUser {
