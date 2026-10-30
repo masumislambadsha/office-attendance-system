@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### Architecture
 - **DB**: MongoDB (default db `attendance`). Typed collections through `src/lib/mongo.ts` — a singleton `db()` + `collections()` helper; never `mongoose`, never raw collection names outside it.
-- **Auth**: better-auth (email+password) at `/api/auth/[...all]`. Not Supabase (despite the PRD). Session helpers `requireAdmin`/`requireEmployee` in `src/auth.ts`.
+- **Auth**: better-auth (email+password) at `/api/auth/[...all]`. Self-registration at `/register` is limited to emails already on the active `employees` list; admins can also create/reset a login from `/admin/employees/[id]`, and employees change their password at `/me/security`. Session helpers `requireAdmin`/`requireEmployee` in `src/auth.ts`.
 - **Role model** (`src/attend/roles.ts`): roles are derived at runtime from the `employees` collection (active records) plus `ADMIN_EMAIL` env bootstrap — there is no stored user-role column to reconcile.
 - **Domain engine** lives in `src/attend/` and is kept **pure** (no Next server/React imports) so it can run under plain Node type-stripping:
   - `status.ts` — day-status resolution. Priority: manual override > holiday > weekly off > approved leave > missing check-in (absent) > timing (present/late/half_day). Boundary tests live in `scripts/test-status.ts`.

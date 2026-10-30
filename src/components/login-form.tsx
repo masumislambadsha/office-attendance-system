@@ -1,8 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles, TriangleAlert } from "lucide-react";
+import { ArrowRight, CheckCircle2, Eye, EyeOff, Lock, Mail, Sparkles, TriangleAlert } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 
 // Dev-only one-click login (the server hides this block in production). The
@@ -11,9 +12,17 @@ import { Spinner } from "@/components/ui/spinner";
 const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? "";
 const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD ?? "";
 
-export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnabled: boolean; demoEnabled: boolean }) {
+export default function LoginForm({
+  googleEnabled,
+  demoEnabled,
+  registeredEmail = "",
+}: {
+  googleEnabled: boolean;
+  demoEnabled: boolean;
+  registeredEmail?: string;
+}) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(registeredEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState<"form" | "google" | "demo" | null>(null);
@@ -92,6 +101,16 @@ export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnable
             <p className="text-[15px] text-warm-700">Access your office account</p>
           </div>
 
+          {registeredEmail && (
+            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+              <p className="text-sm text-emerald-800">
+                Account created for <span className="font-semibold">{registeredEmail}</span>. Sign
+                in below.
+              </p>
+            </div>
+          )}
+
           {error && (
             <div className="mb-6 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
               <TriangleAlert className="h-5 w-5 shrink-0 text-red-600" />
@@ -158,6 +177,16 @@ export default function LoginForm({ googleEnabled, demoEnabled }: { googleEnable
               {!busy && <ArrowRight className="ml-2 h-4 w-4" />}
             </button>
           </form>
+
+          <p className="mt-5 text-center text-sm text-warm-600">
+            New employee?{" "}
+            <Link
+              href="/register"
+              className="font-semibold text-sage-700 underline underline-offset-4 hover:text-sage-800"
+            >
+              Create your account
+            </Link>
+          </p>
 
           {googleEnabled && (
             <div className="mt-7">

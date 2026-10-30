@@ -48,7 +48,7 @@ export function CreateLoginCard({
         <p className="text-xs text-warm-600">
           {hasLogin
             ? "Resetting generates a new password and invalidates the old one immediately."
-            : "Sign-up is disabled, so the employee cannot create this themselves. Generate a password and hand it over."}
+            : "The employee can also create their own login at /register using this email. Use this only if they need a password from you."}
         </p>
         <form action={formAction}>
           <input type="hidden" name="employee_id" value={employeeId} />

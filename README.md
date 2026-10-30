@@ -6,7 +6,7 @@ QR-based attendance app for a single office. Employees check in/out on their pho
 
 - Next.js (App Router, React 19) + HeroUI + Tailwind v4
 - MongoDB via the typed singleton in `src/lib/mongo.ts` (no ORM)
-- better-auth (email + password; sign-up is disabled — users are provisioned by scripts)
+- better-auth (email + password; employees self-register at `/register` with an active employee email, or an admin creates/resets a login)
 - Deployable to Vercel; `vercel.json` schedules the daily cron
 
 The domain engine (`src/attend/`) is pure TypeScript with no framework imports so it can run under plain Node type-stripping for tests.

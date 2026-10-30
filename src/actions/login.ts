@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getAuth, requireAdmin, requireEmployee } from "@/auth";
 import { collections, getDb } from "@/lib/mongo";
 import { generatePassword, hashPassword } from "@/lib/password";
@@ -97,6 +98,74 @@ export async function createEmployeeLogin(
     password,
     created: !existingCredential,
   };
+}
+
+/**
+ * Self-service registration, restricted to active employee emails.
+ *
+ * Open sign-up stays disabled. Anyone can reach /register, but only an email
+ * that already exists on the active `employees` list can create a login, so
+ * outsiders cannot grant themselves access to the attendance system.
+ */
+export async function registerEmployee(formData: FormData): Promise<never> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirm_password") ?? "");
+
+  const failUrl = (code: string) =>
+    `/register?error=${code}&email=${encodeURIComponent(email)}`;
+
+  if (!email || !password) redirect(failUrl("missing"));
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) redirect(failUrl("bad_email"));
+  if (password.length < 10) redirect(failUrl("short"));
+  if (password !== confirmPassword) redirect(failUrl("mismatch"));
+
+  const employee = await collections().employees.findOne(
+    { email, active: true },
+    { collation: { locale: "en", strength: 2 } },
+  );
+  if (!employee) redirect(failUrl("not_employee"));
+
+  const db = getDb();
+  const users = db.collection<{ _id: string | ObjectId; [key: string]: unknown }>("user");
+  const accounts = db.collection<{ _id: string | ObjectId; [key: string]: unknown }>("account");
+
+  const existing = await users.findOne({ email });
+  if (existing) redirect(failUrl("exists"));
+
+  const now = new Date();
+  const userId = randomBytes(12).toString("hex");
+  const hash = await hashPassword(password);
+
+  await users.insertOne({
+    _id: userId,
+    name: employee.name,
+    email,
+    emailVerified: true,
+    role: "employee",
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await accounts.insertOne({
+    _id: randomBytes(12).toString("hex"),
+    userId,
+    accountId: userId,
+    providerId: "credential",
+    password: hash,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await writeAudit({
+    actor: email,
+    action: "employee.register",
+    entity: `employees:${employee._id.toString()}`,
+    new: { email },
+    reason: "self-service registration",
+  });
+
+  redirect(`/login?registered=${encodeURIComponent(email)}`);
 }
 
 export interface PasswordState {
