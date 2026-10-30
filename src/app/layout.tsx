@@ -15,6 +15,14 @@ export const metadata: Metadata = {
   title: { default: "Office Attendance", template: "%s · Office Attendance" },
   description: "QR-based attendance, leave, and monthly deduction sheet for the office.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Attendance" },
 };
 
