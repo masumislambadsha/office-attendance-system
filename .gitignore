@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...but the template of placeholder keys is safe and needed by the README
+!.env.example
 
 # vercel
 .vercel
